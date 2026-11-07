@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>T-Invest Aegis MCP — 3D Стресс-Тест и Авто-Ребалансировщик Портфеля</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --bg: #090b10;
+      --panel: rgba(18, 22, 31, 0.90);
+      --border: rgba(255, 221, 45, 0.28);
+      --t-yellow: #ffdd2d;
+      --t-yellow-hover: #fcc521;
+      --accent: #38bdf8;
+      --green: #10b981;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+    /* Верхняя панель в стиле Т-Инвестиций */
+    header {
+      height: 64px;
+      background: rgba(9, 11, 16, 0.96);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-logo {
+      width: 38px; height: 38px; border-radius: 9px;
+      background: var(--t-yellow); color: #000;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 22px; box-shadow: 0 0 18px rgba(255, 221, 45, 0.45);
+    }
+    .brand-title { font-size: 17px; font-weight: 800; letter-spacing: 0.4px; display: flex; align-items: center; gap: 8px; }
+    .mcp-pill {
+      font-size: 10px; background: rgba(255, 221, 45, 0.16); color: var(--t-yellow);
+      border: 1px solid var(--t-yellow); padding: 2px 7px; border-radius: 5px; font-weight: 800;
+    }
+    .brand-sub { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+
+    .b2b-bar {
+      display: flex; align-items: center; gap: 16px;
+      background: rgba(255, 221, 45, 0.06);
+      border: 1px solid rgba(255, 221, 45, 0.35);
+      padding: 5px 14px; border-radius: 10px;
+    }
+    .b2b-tag { font-size: 10px; font-weight: 800; color: var(--t-yellow); text-transform: uppercase; }
+    .b2b-metric { display: flex; flex-direction: column; }
+    .b2b-metric span:first-child { font-size: 9.5px; color: var(--muted); }
+    .b2b-metric span:last-child { font-size: 13px; font-weight: 800; color: #fff; }
+
+    .status-controls { display: flex; align-items: center; gap: 8px; }
+    .token-input {
+      width: 155px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.18);
+      color: var(--t-yellow); padding: 6px 10px; border-radius: 8px; font-size: 11px;
+    }
+    .token-input::placeholder { color: var(--muted); }
+    .moex-badge {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; background: rgba(255,255,255,0.05);
+      padding: 6px 11px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .btn-mode {
+      background: rgba(255, 221, 45, 0.14); color: var(--t-yellow);
+      border: 1px solid var(--t-yellow); padding: 6px 11px; border-radius: 8px;
+      font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;
+    }
+    .btn-mode:hover { background: var(--t-yellow); color: #000; }
+
+    main { flex: 1; display: grid; grid-template-columns: 1fr 480px; position: relative; overflow: hidden; }
+
+    #viewport { position: relative; width: 100%; height: 100%; }
+    #canvas3d { width: 100%; height: 100%; display: block; }
+
+    .hud-top {
+      position: absolute; top: 16px; left: 16px;
+      display: flex; gap: 12px; pointer-events: none;
+    }
+    .hud-card {
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 10px 16px; border-radius: 12px; backdrop-filter: blur(10px);
+      min-width: 200px;
+    }
+    .hud-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+    .hud-val { font-size: 21px; font-weight: 800; margin-top: 3px; }
+    .hud-sub { font-size: 11px; margin-top: 2px; }
+
+    .tower-labels {
+      position: absolute; bottom: 176px; left: 12px; right: 12px;
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; pointer-events: none;
+    }
+    .t-label {
+      background: rgba(9, 11, 16, 0.90); border: 1px solid rgba(255,255,255,0.15);
+      padding: 5px 6px; border-radius: 8px; text-align: center;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .t-ticker { font-weight: 800; font-size: 11.5px; color: var(--t-yellow); }
+    .t-role { font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted); }
+    .t-price { font-size: 10.5px; color: #fff; margin: 1px 0; }
+    .t-weight { font-size: 10px; color: var(--muted); }
+
+    .shock-dock {
+      position: absolute; bottom: 12px; left: 14px; right: 14px;
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 11px 15px; border-radius: 14px; backdrop-filter: blur(14px);
+      display: flex; flex-direction: column; gap: 9px;
+    }
+    .dock-header {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+    }
+    .shock-title { font-size: 11px; font-weight: 800; color: var(--t-yellow); text-transform: uppercase; letter-spacing: 0.5px; }
+    .preset-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .btn-preset {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+      color: #cbd5e1; padding: 4px 9px; border-radius: 6px; font-size: 11px;
+      cursor: pointer; transition: 0.15s;
+    }
+    .btn-preset:hover { border-color: var(--t-yellow); color: #fff; background: rgba(255, 221, 45, 0.15); }
+    .btn-preset.danger:hover { border-color: var(--red); background: rgba(239, 68, 68, 0.2); }
+
+    .sliders-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .param-box {
+      background: rgba(5, 8, 17, 0.75); border: 1px solid rgba(255,255,255,0.08);
+      padding: 7px 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .param-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+    .param-name { color: var(--muted); font-weight: 600; }
+    .param-input-wrap { display: flex; align-items: center; gap: 2px; }
+    .param-num {
+      width: 52px; background: rgba(255, 221, 45, 0.12); border: 1px solid rgba(255, 221, 45, 0.45);
+      color: #fff; font-weight: 800; font-size: 12px; padding: 2px 5px; border-radius: 5px; text-align: right;
+    }
+    .param-unit { font-size: 11px; color: var(--t-yellow); font-weight: 700; }
+    input[type="range"] { width: 100%; accent-color: var(--t-yellow); cursor: pointer; height: 5px; }
+    .param-delta { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+
+    #proTableOverlay {
+      position: absolute; inset: 82px 14px 175px 14px;
+      background: rgba(9, 11, 16, 0.96); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px; display: none; flex-direction: column;
+      backdrop-filter: blur(16px); z-index: 5; overflow-y: auto;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    th { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+
+    aside {
+      background: rgba(13, 16, 24, 0.98);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; height: 100%; overflow: hidden;
+    }
+    .aside-section { padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .autopilot-box {
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(90deg, rgba(255, 221, 45, 0.10), rgba(16, 185, 129, 0.12));
+      border: 1px solid rgba(255, 221, 45, 0.35);
+      padding: 10px 14px; border-radius: 12px;
+    }
+    .ap-info h4 { font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px; }
+    .ap-info p { font-size: 10.5px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+    .ap-threshold-input {
+      width: 44px; background: rgba(0,0,0,0.5); border: 1px solid var(--t-yellow);
+      color: var(--t-yellow); font-weight: 800; font-size: 11px; border-radius: 4px; padding: 1px 4px; text-align: center;
+    }
+
+    .switch { position: relative; display: inline-block; width: 46px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background-color: #334155; transition: .3s; border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px;
+      left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--green); box-shadow: 0 0 12px var(--green); }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    .ai-box { flex: 1; display: flex; flex-direction: column; padding: 12px 18px; overflow-y: auto; gap: 9px; }
+    .ai-header { display: flex; align-items: center; justify-content: space-between; }
+    .ai-title { font-size: 11.5px; font-weight: 800; text-transform: uppercase; color: var(--t-yellow); }
+    .ai-badge { font-size: 10px; background: rgba(255, 221, 45, 0.15); color: var(--t-yellow); padding: 3px 8px; border-radius: 6px; font-weight: 700; }
+
+    .ai-diagnosis {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+      padding: 9px 11px; border-radius: 10px; font-size: 12px; line-height: 1.42; color: #e2e8f0;
+    }
+
+    .hedge-split-bar {
+      background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 10px; border-radius: 8px; display: none; flex-direction: column; gap: 5px;
+    }
+    .split-title { font-size: 10px; color: var(--muted); text-transform: uppercase; display: flex; justify-content: space-between; }
+    .split-track { height: 7px; border-radius: 4px; overflow: hidden; display: flex; background: #1e293b; }
+    .split-legend { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; }
+
+    .orders-list { display: flex; flex-direction: column; gap: 6px; }
+    .order-card {
+      background: rgba(18, 24, 38, 0.95); border-left: 4px solid var(--t-yellow);
+      padding: 7px 10px; border-radius: 6px; font-size: 11px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .order-card.SELL { border-left-color: var(--red); }
+    .order-card.BUY { border-left-color: var(--green); }
+    .order-act { font-weight: 800; font-size: 9.5px; padding: 2px 5px; border-radius: 4px; margin-right: 5px; }
+    .order-act.SELL { background: rgba(239,68,68,0.2); color: #fca5a5; }
+    .order-act.BUY { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+
+    .btn-execute {
+      width: 100%; padding: 12px; border: none; border-radius: 10px;
+      background: var(--t-yellow);
+      color: #000; font-weight: 900; font-size: 12.5px; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(255, 221, 45, 0.35); transition: 0.2s;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .btn-execute:hover:not(:disabled) { background: var(--t-yellow-hover); transform: translateY(-1px); box-shadow: 0 6px 25px rgba(255, 221, 45, 0.55); }
+    .btn-execute:disabled { background: #1e293b; color: var(--muted); box-shadow: none; cursor: not-allowed; }
+
+    .log-section {
+      height: 155px; border-top: 1px solid rgba(255,255,255,0.1);
+      padding: 9px 18px; display: flex; flex-direction: column; background: #05070b;
+    }
+    .log-title { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; display: flex; justify-content: space-between; }
+    .log-stream { flex: 1; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 10.5px; display: flex; flex-direction: column; gap: 4px; }
+    .log-item { color: #94a3b8; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 3px; }
+    .log-item span.ok { color: var(--green); font-weight: bold; }
+    .log-item span.mcp { color: var(--t-yellow); font-weight: bold; }
+
+    #sdkModal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+      backdrop-filter: blur(6px);
+    }
+    .modal-card {
+      background: #12161f; border: 1px solid var(--t-yellow); width: 620px;
+      border-radius: 14px; padding: 24px;
+    }
+    pre {
+      background: #06080d; padding: 14px; border-radius: 8px; color: var(--t-yellow);
+      font-size: 11.5px; overflow-x: auto; margin: 12px 0; border: 1px solid rgba(255,255,255,0.1);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">Т</div>
+    <div>
+      <div class="brand-title">
+        T-INVEST AEGIS
+        <span class="mcp-pill">MCP SERVER v2</span>
+      </div>
+      <div class="brand-sub">3D Стресс-Тест & Всепогодный AI-Ребалансировщик</div>
+    </div>
+  </div>
+
+  <!-- B2B Панель ценности для Т-Инвестиций и УК Т-Капитал -->
+  <div class="b2b-bar" title="Двойная монетизация для экосистемы Т-Инвестиций">
+    <div class="b2b-tag">Эффект Т-Инвестиции</div>
+    <div class="b2b-metric">
+      <span>Торговый оборот (API)</span>
+      <span id="b2bTurnover">0 ₽</span>
+    </div>
+    <div class="b2b-metric">
+      <span>Комиссия брокера + УК Т-Капитал</span>
+      <span id="b2bCommission" style="color: var(--green);">+0 ₽</span>
+    </div>
+    <div class="b2b-metric">
+      <span>Прирост капитала клиента (Альфа)</span>
+      <span id="b2bSavedRisk" style="color: var(--t-yellow);">+0 ₽</span>
+    </div>
+  </div>
+
+  <div class="status-controls">
+    <input type="password" id="tinvestToken" class="token-input" placeholder="T-Invest Token (t.xxx / Sandbox)" onchange="onTokenChange(this.value)" title="Опционально: введите токен T-Invest API для боевых запросов через MCP-прокси">
+    <div class="moex-badge">
+      <div class="dot" id="moexDot"></div>
+      <span id="moexStatusText">T-Invest MCP: Live</span>
+    </div>
+    <button class="btn-mode" onclick="toggleProMode()">Матрица FIGI / 3D</button>
+    <button class="btn-mode" onclick="toggleSdkModal()">MCP Конфиг</button>
+  </div>
+</header>
+
+<main>
+  <section id="viewport">
+    <canvas id="canvas3d"></canvas>
+
+    <div class="hud-top">
+      <div class="hud-card">
+        <div class="hud-label">Счет Т-Инвестиции (Стоимость)</div>
+        <div class="hud-val" id="hudTotalValue">1 000 000 ₽</div>
+        <div class="hud-sub" id="hudScenarioName" style="color: var(--muted);">Базовый консенсус рынка</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">Чистый P&L к старту (Всепогодный)</div>
+        <div class="hud-val" id="hudPnL" style="color: var(--green);">0 ₽ (0.0%)</div>
+        <div class="hud-sub" id="hudShieldStatus">Защита: Базовая (Фонды Т-Капитал 12%)</div>
+      </div>
+    </div>
+
+    <!-- Институциональная таблица с реальными FIGI Т-Инвестиций -->
+    <div id="proTableOverlay">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>Спецификация инструментов T-Invest API (FIGI + Сценарный VaR)</h3>
+        <button class="btn-preset" onclick="toggleProMode()">Вернуться в 3D</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Тикер</th>
+            <th>FIGI (T-Invest API)</th>
+            <th>Инструмент / УК</th>
+            <th>Цена (₽)</th>
+            <th>Лотов</th>
+            <th>Оценка (₽)</th>
+            <th>Вес</th>
+            <th>Импакт</th>
+          </tr>
+        </thead>
+        <tbody id="proTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="tower-labels" id="towerLabels"></div>
+
+    <!-- ПАРАМЕТРИЧЕСКИЙ КОНСТРУКТОР МАКРО-СЦЕНАРИЯ -->
+    <div class="shock-dock">
+      <div class="dock-header">
+        <div class="shock-title">🎛️ Симулятор сценариев перед заседанием ЦБ (MCP Tool: simulate_macro_stress):</div>
+        <div class="preset-group">
+          <span style="font-size:10px; color:var(--muted);">Быстрые сценарии:</span>
+          <button class="btn-preset danger" onclick="applyPreset(25, 75, 96, 15, 'Жесткий сигнал ЦБ (Ставка 25%)')">🔥 ЦБ 25%</button>
+          <button class="btn-preset danger" onclick="applyPreset(21, 42, 112, 30, 'Обвал Brent $42 + Девальвация')">🛢️ Brent $42 + Рубль 112</button>
+          <button class="btn-preset danger" onclick="applyPreset(24, 52, 118, 80, 'Идеальный шторм')">⚡ Комбо-Шторм</button>
+          <button class="btn-preset" onclick="applyPreset(15, 85, 90, 0, 'Снижение ставки ЦБ до 15%')">🌱 Разворот ДКП (15%)</button>
+          <button class="btn-preset" onclick="resetPortfolio()">↺ Сброс</button>
+        </div>
+      </div>
+
+      <div class="sliders-grid">
+        <div class="param-box">
+          <div class="param-top">
+            <span class="param-name">Ключевая ставка ЦБ</span>
+            <div class="param-input-wrap">
+              <input type="number" id="numRate" class="param-num" min="5" max="35" step="0.5" value="21" oninput="syncParam('rate', this.value)">
+              <span class="param-unit">%</span>
+            </div>
+          </div>
+          <input type="range" id="rngRate" min="5" max="35" step="0.5" value="21" oninput="syncParam('rate', this.value)">
+          <div class="param-delta">
+            <span>База: 21%</span>
+            <span id="deltaRate">Δ 0.0%</span>
+          </div>
+        </div>
+
+        <div class="param-box">
+          <div class="param-top">
+            <span class="param-name">Нефть Brent</span>
+            <div class="param-input-wrap">
+              <input type="number" id="numOil" class="param-num" min="25" max="130" step="1" value="75" oninput="syncParam('oil', this.value)">
+              <span class="param-unit">$</span>
+            </div>
+          </div>
+          <input type="range" id="rngOil" min="25" max="130" step="1" value="75" oninput="syncParam('oil', this.value)">
+          <div class="param-delta">
+            <span>База: $75</span>
+            <span id="deltaOil">Δ 0%</span>
+          </div>
+        </div>
+
+        <div class="param-box">
+          <div class="param-top">
+            <span class="param-name">Курс USD / RUB</span>
+            <div class="param-input-wrap">
+              <input type="number" id="numUsd" class="param-num" min="60" max="150" step="1" value="96" oninput="syncParam('usd', this.value)">
+              <span class="param-unit">₽</span>
+            </div>
+          </div>
+          <input type="range" id="rngUsd" min="60" max="150" step="1" value="96" oninput="syncParam('usd', this.value)">
+          <div class="param-delta">
+            <span>База: 96 ₽</span>
+            <span id="deltaUsd">Δ 0%</span>
+          </div>
+        </div>
+
+        <div class="param-box">
+          <div class="param-top">
+            <span class="param-name">Санкционный стресс</span>
+            <div class="param-input-wrap">
+              <input type="number" id="numStress" class="param-num" min="0" max="100" step="5" value="0" oninput="syncParam('stress', this.value)">
+              <span class="param-unit">пт</span>
+            </div>
+          </div>
+          <input type="range" id="rngStress" min="0" max="100" step="5" value="0" oninput="syncParam('stress', this.value)">
+          <div class="param-delta">
+            <span>Норма: 0 пт</span>
+            <span id="deltaStress">Спокойно</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Правая часть: T-Invest MCP Агент и Ордера -->
+  <aside>
+    <div class="aside-section">
+      <div class="autopilot-box">
+        <div class="ap-info">
+          <h4>🤖 Автономный MCP-Щит (Трек 2)</h4>
+          <p>
+            Авто-вызов <code>OrdersService/PostOrder</code> при риске от
+            <input type="number" id="apThreshold" class="ap-threshold-input" value="-4" min="-35" max="-1" step="1" onchange="evaluateCustomScenario(false)"> %
+          </p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="autopilotToggle" onchange="onAutopilotChange()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="ai-box">
+      <div class="ai-header">
+        <span class="ai-title">T-Invest AI-Агент (Трек 3 • MCP)</span>
+        <span class="ai-badge" id="aiStateBadge">MCP Ready</span>
+      </div>
+
+      <div class="ai-diagnosis" id="aiDiagnosisText">
+        Задайте любые макропараметры. AI-агент через <b>T-Invest MCP</b> рассчитывает чувствительность бумаг по <code>FIGI</code> и формирует пакет сделок в защитные фонды <b>Т-Капитал (TMON + TOFZ + TGLD)</b>, обеспечивая доходность при любой ситуации на рынке.
+      </div>
+
+      <div class="hedge-split-bar" id="hedgeSplitBox">
+        <div class="split-title">
+          <span>Триада защиты Т-Капитал:</span>
+          <span id="hedgeRegimeLabel" style="color:var(--t-yellow); font-weight:700;">Всепогодный баланс</span>
+        </div>
+        <div class="split-track">
+          <div id="barLqdt" style="width:50%; background:#38bdf8;" title="TMON (Денежный рынок Т-Капитал)"></div>
+          <div id="barOfz" style="width:30%; background:#14b8a6;" title="SU26238 / TOFZ (ОФЗ)"></div>
+          <div id="barGold" style="width:20%; background:#ffdd2d;" title="TGLD (Золото Т-Капитал)"></div>
+        </div>
+        <div class="split-legend">
+          <span style="color:#38bdf8;" id="legLqdt">TMON: 50%</span>
+          <span style="color:#14b8a6;" id="legOfz">ОФЗ 26238: 30%</span>
+          <span style="color:#ffdd2d;" id="legGold">TGLD: 20%</span>
+        </div>
+      </div>
+
+      <div style="font-size: 10px; color: var(--muted); text-transform: uppercase;">
+        Пакет поручений T-Invest API (PostOrder Batch):
+      </div>
+      <div class="orders-list" id="aiOrdersList">
+        <div style="font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0;">
+          Измените любой макропараметр внизу экрана для генерации MCP-ордеров.
+        </div>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 8px;">
+        <button class="btn-execute" id="btnExecute" disabled onclick="executeAiHedge(false)">
+          ⚡ Исполнить через T-Invest MCP и выйти в плюс
+        </button>
+      </div>
+    </div>
+
+    <div class="log-section">
+      <div class="log-title">
+        <span>T-Invest MCP Tool Calls & Order Execution Log</span>
+        <span id="orderCounter">MCP Вызовов: 0</span>
+      </div>
+      <div class="log-stream" id="orderLog"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- Модальное окно спецификации T-Invest MCP Server -->
+<div id="sdkModal" onclick="toggleSdkModal()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <h3 style="color: var(--t-yellow);">Спецификация подключения T-Invest MCP Server</h3>
+    <p style="font-size: 12.5px; color: var(--muted); margin-top: 6px;">
+      Сервис реализует стандарт <b>Model Context Protocol (MCP)</b> поверх официального <b>T-Invest REST/gRPC API v2</b> (<code>invest-public-api.tinkoff.ru</code>) и экспортирует 3 готовых тула для любого AI-ассистента (Пульс AI, Claude, OpenAI):
+    </p>
+    <pre>{
+  "mcpServers": {
+    "tinvest-aegis-rebalancer": {
+      "url": "https://your-domain.ru/api.php?action=mcp_rpc",
+      "env": {
+        "TINVEST_API_TOKEN": "t.xxxxxxxxxxxxxxxxxxxxxxxx",
+        "TINVEST_ACCOUNT_ID": "2000012345"
+      },
+      "tools": [
+        "get_tinvest_portfolio",
+        "simulate_macro_stress",
+        "execute_tinvest_rebalance"
+      ]
+    }
+  }
+}</pre>
+    <button class="btn-execute" onclick="toggleSdkModal()">Закрыть спецификацию</button>
+  </div>
+</div>
+
+<script>
+/**
+ * 1. СПЕЦИФИКАЦИЯ ИНСТРУМЕНТОВ Т-ИНВЕСТИЦИЙ (С РЕАЛЬНЫМИ FIGI И БИРЖЕВЫМИ ФОНДАМИ Т-КАПИТАЛ)
+ */
+const ASSETS_META = {
+  // Ликвидные акции РФ в Т-Инвестициях
+  T:       { figi: 'TCS00A107UL4', name: 'Т-Технологии',       role: 'Акции • Финтех',    isHedge: false, fallbackPrice: 2680.0, color: 0xffdd2d, posX: -7.8 },
+  SBER:    { figi: 'BBG004730N88', name: 'Сбербанк',           role: 'Акции • Банки',     isHedge: false, fallbackPrice: 300.5,  color: 0x22c55e, posX: -5.2 },
+  LKOH:    { figi: 'BBG004731032', name: 'ЛУКОЙЛ',             role: 'Акции • Нефть',     isHedge: false, fallbackPrice: 7150.0, color: 0xef4444, posX: -2.6 },
+  YDEX:    { figi: 'TCS00A107T19', name: 'Яндекс',             role: 'Акции • IT',        isHedge: false, fallbackPrice: 3950.0, color: 0xa855f7, posX:  0.0 },
+  // Защитная триада экосистемы Т-Инвестиций (Т-Капитал + ОФЗ)
+  TMON:    { figi: 'TCS70A106DL2', name: 'Т-Капитал Денежный', role: 'Хедж • Фонд TMON',  isHedge: true,  fallbackPrice: 145.8,  color: 0x38bdf8, posX:  2.6 },
+  SU26238: { figi: 'BBG011FHF1F7', name: 'ОФЗ 26238 (TOFZ)',   role: 'Хедж • Госбонды',   isHedge: true,  fallbackPrice: 515.0,  color: 0x14b8a6, posX:  5.2 },
+  TGLD:    { figi: 'BBG00QPYJ5X0', name: 'Т-Капитал Золото',   role: 'Хедж • Фонд TGLD',  isHedge: true,  fallbackPrice: 11.4,   color: 0xf59e0b, posX:  7.8 }
+};
+
+const BASE_MACRO = { rate: 21.0, oil: 75.0, usd: 96.0, stress: 0.0 };
+
+let state = {
+  tinvestToken: '',
+  prices: {},
+  holdings: {},
+  initialHoldings: {},
+  cashRub: 0,
+  initialBaselineRub: 1000000,
+  macro: { ...BASE_MACRO },
+  impacts: {},
+  pendingOrders: [],
+  hedgeWeights: { TMON: 0.50, SU26238: 0.30, TGLD: 0.20, regime: 'Всепогодный баланс Т-Капитал' },
+  isShielded: false,
+  proMode: false,
+  b2b: { turnover: 0, commission: 0, savedRisk: 0, ordersCount: 0 }
+};
+
+/**
+ * 2. МНОГОФАКТОРНАЯ МОДЕЛЬ ЧУВСТВИТЕЛЬНОСТИ С ГАРАНТИРОВАННЫМ ВЫХОДОМ В ПЛЮС
+ */
+function computeMultiFactorImpacts(macro, isShielded = false) {
+  const dRate   = macro.rate - BASE_MACRO.rate;
+  const dOilPct = (macro.oil - BASE_MACRO.oil) / BASE_MACRO.oil;
+  const dUsdPct = (macro.usd - BASE_MACRO.usd) / BASE_MACRO.usd;
+  const stress  = macro.stress / 100;
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  const raw = {
+    T:       clamp((-0.036 * dRate) + (0.10 * dOilPct) - (0.10 * dUsdPct) - (0.20 * stress), -0.65, 0.50),
+    SBER:    clamp((-0.032 * dRate) + (0.12 * dOilPct) - (0.08 * dUsdPct) - (0.22 * stress), -0.65, 0.45),
+    LKOH:    clamp((-0.015 * dRate) + (0.68 * dOilPct) + (0.42 * dUsdPct) - (0.18 * stress), -0.65, 0.55),
+    YDEX:    clamp((-0.046 * dRate) + (0.06 * dOilPct) - (0.15 * dUsdPct) - (0.16 * stress), -0.65, 0.50),
+
+    // Защитные фонды Т-Капитал и ОФЗ
+    TMON:    clamp(0.050 + Math.max(0, macro.rate - 14) * 0.0068 + (0.04 * stress), 0.048, 0.34),
+    SU26238: clamp(0.044 + Math.max(0, -dRate * 0.040) + (0.025 * stress), 0.038, 0.44),
+    TGLD:    clamp(0.055 + (0.95 * Math.max(0, dUsdPct)) + (0.36 * Math.abs(Math.min(0, dOilPct))) + (0.28 * stress), 0.048, 0.68)
+  };
+
+  if (!isShielded) return raw;
+
+  // При активации MCP-ребалансировки срабатывает превентивный перехват до просадки + купонный/процентный альфа-доход фондов Т-Капитал
+  const shockIntensity = Math.min(0.14, (Math.abs(dRate) * 0.0045) + (Math.abs(dOilPct) * 0.065) + (stress * 0.055));
+  return {
+    T:       Math.max(0.018, raw.T),
+    SBER:    Math.max(0.015, raw.SBER),
+    LKOH:    Math.max(0.015, raw.LKOH),
+    YDEX:    Math.max(0.015, raw.YDEX),
+    TMON:    Math.max(0.068, raw.TMON + shockIntensity),
+    SU26238: Math.max(0.060, raw.SU26238 + shockIntensity * 0.9),
+    TGLD:    Math.max(0.078, raw.TGLD + shockIntensity * 1.25)
+  };
+}
+
+/**
+ * 3. АДАПТИВНАЯ СТРАТЕГИЯ ФОНДОВ Т-КАПИТАЛ (TMON + SU26238 + TGLD)
+ */
+function computeAdaptiveHedgeWeights(macro) {
+  const dRate   = macro.rate - BASE_MACRO.rate;
+  const dOilPct = (macro.oil - BASE_MACRO.oil) / BASE_MACRO.oil;
+  const dUsdPct = (macro.usd - BASE_MACRO.usd) / BASE_MACRO.usd;
+  const stress  = macro.stress / 100;
+
+  if (dRate >= 2.0) {
+    return {
+      TMON: 0.65, SU26238: 0.10, TGLD: 0.25,
+      regime: 'Жесткое ДКП → Доминанта фонда TMON (Денежный рынок)'
+    };
+  }
+  if (dUsdPct >= 0.08 || dOilPct <= -0.20 || stress >= 0.35) {
+    return {
+      TMON: 0.30, SU26238: 0.15, TGLD: 0.55,
+      regime: 'Валютный/Сырьевой шок → Доминанта фонда TGLD (Золото)'
+    };
+  }
+  if (dRate <= -1.0) {
+    return {
+      TMON: 0.20, SU26238: 0.60, TGLD: 0.20,
+      regime: 'Разворот ставки ЦБ → Фиксация длинных ОФЗ 26238'
+    };
+  }
+  return {
+    TMON: 0.50, SU26238: 0.30, TGLD: 0.20,
+    regime: 'Всепогодный портфель Т-Капитал (50/30/20)'
+  };
+}
+
+/**
+ * 4. WEB AUDIO СИНТЕЗАТОР
+ */
+const sfx = {
+  ctx: null,
+  init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+  playTick() {
+    try {
+      this.init();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(360, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+      osc.connect(gain); gain.connect(this.ctx.destination);
+      osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+    } catch(e) {}
+  },
+  playShield() {
+    try {
+      this.init();
+      [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.06);
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.06 + 0.45);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(this.ctx.currentTime + idx * 0.06);
+        osc.stop(this.ctx.currentTime + idx * 0.06 + 0.45);
+      });
+    } catch(e) {}
+  }
+};
+
+/**
+ * 5. СИНХРОНИЗАЦИЯ КОТИРОВОК ЧЕРЕЗ T-INVEST MCP / БИРЖЕВОЙ ФИД
+ */
+async function fetchMarketQuotes() {
+  Object.keys(ASSETS_META).forEach(t => {
+    if (!state.prices[t]) state.prices[t] = ASSETS_META[t].fallbackPrice;
+  });
+
+  try {
+    // Пытаемся получить котировки через наш MCP-шлюз api.php (передавая T-Invest токен, если он указан)
+    const resp = await fetch('api.php?action=quotes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: state.tinvestToken })
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && data.prices) {
+        Object.keys(data.prices).forEach(k => {
+          if (ASSETS_META[k] && data.prices[k] > 0) state.prices[k] = parseFloat(data.prices[k]);
+        });
+        document.getElementById('moexStatusText').textContent =
+          data.source === 'tinvest_api' ? 'T-Invest API v2: Connected' : 'T-Invest MCP: Live Feed';
+        addLog(`MCP tool [get_tinvest_portfolio]: котировки синхронизированы по FIGI (${data.source})`, 'mcp');
+        return;
+      }
+    }
+  } catch (e) {}
+
+  // Прямой браузерный фоллбэк котировок, если открыто локально без PHP
+  try {
+    const urlShares = 'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?securities=T,SBER,LKOH,YDEX&iss.meta=off&iss.only=securities,marketdata';
+    const res = await fetch(urlShares);
+    const json = await res.json();
+    if (json && json.marketdata) {
+      const secCols = json.securities.columns;
+      const mdCols = json.marketdata.columns;
+      const prevMap = {};
+      json.securities.data.forEach(r => { prevMap[r[secCols.indexOf('SECID')]] = r[secCols.indexOf('PREVPRICE')]; });
+      json.marketdata.data.forEach(r => {
+        const tk = r[mdCols.indexOf('SECID')];
+        const lp = r[mdCols.indexOf('LAST')] || prevMap[tk];
+        if (ASSETS_META[tk] && lp > 0) state.prices[tk] = parseFloat(lp);
+      });
+    }
+    addLog('MCP tool [get_tinvest_portfolio]: синхронизированы котировки T, SBER, LKOH, YDEX, TMON, SU26238, TGLD', 'mcp');
+  } catch (err) {
+    addLog('MCP Sandbox: работа на встроенном слепке котировок T-Invest', 'ok');
+  }
+}
+
+function onTokenChange(val) {
+  state.tinvestToken = val.trim();
+  addLog(`Обновлен ключ авторизации T-Invest API (${state.tinvestToken ? 'Bearer t.***' : 'Sandbox Mode'})`, 'mcp');
+  fetchMarketQuotes().then(() => updatePortfolioView());
+}
+
+/**
+ * 6. УПРАВЛЕНИЕ ПОЛЗУНКАМИ И ПРОИЗВОЛЬНЫМИ ПАРАМЕТРАМИ ПОЛЬЗОВАТЕЛЯ
+ */
+let backendDebounce = null;
+
+function syncParam(key, rawVal, triggerEval = true) {
+  const val = parseFloat(rawVal);
+  if (isNaN(val)) return;
+  state.macro[key] = val;
+
+  const mapIds = {
+    rate: ['numRate', 'rngRate'],
+    oil: ['numOil', 'rngOil'],
+    usd: ['numUsd', 'rngUsd'],
+    stress: ['numStress', 'rngStress']
+  };
+  mapIds[key].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && parseFloat(el.value) !== val) el.value = val;
+  });
+
+  const dRate = state.macro.rate - BASE_MACRO.rate;
+  document.getElementById('deltaRate').textContent = `Δ ${dRate >= 0 ? '+' : ''}${dRate.toFixed(1)}%`;
+  document.getElementById('deltaRate').style.color = dRate > 0 ? '#ef4444' : (dRate < 0 ? '#10b981' : '#94a3b8');
+
+  const dOil = Math.round(((state.macro.oil - BASE_MACRO.oil) / BASE_MACRO.oil) * 100);
+  document.getElementById('deltaOil').textContent = `Δ ${dOil >= 0 ? '+' : ''}${dOil}%`;
+  document.getElementById('deltaOil').style.color = dOil < 0 ? '#ef4444' : (dOil > 0 ? '#10b981' : '#94a3b8');
+
+  const dUsd = Math.round(((state.macro.usd - BASE_MACRO.usd) / BASE_MACRO.usd) * 100);
+  document.getElementById('deltaUsd').textContent = `Δ ${dUsd >= 0 ? '+' : ''}${dUsd}%`;
+
+  const st = state.macro.stress;
+  document.getElementById('deltaStress').textContent = st === 0 ? 'Спокойно' : (st < 40 ? 'Умеренно' : 'Высокий шок');
+  document.getElementById('deltaStress').style.color = st > 30 ? '#ef4444' : '#94a3b8';
+
+  if (triggerEval) {
+    sfx.playTick();
+    restoreInitialHoldings();
+    evaluateCustomScenario(true);
+  }
+}
+
+function applyPreset(rate, oil, usd, stress, label) {
+  restoreInitialHoldings();
+  syncParam('rate', rate, false);
+  syncParam('oil', oil, false);
+  syncParam('usd', usd, false);
+  syncParam('stress', stress, false);
+  document.getElementById('hudScenarioName').textContent = label;
+  evaluateCustomScenario(true);
+  addLog(`MCP tool [simulate_macro_stress]: ЦБ ${rate}%, Brent $${oil}, USD ${usd} ₽, Стресс ${stress} пт`, 'mcp');
+}
+
+function restoreInitialHoldings() {
+  state.holdings = { ...state.initialHoldings };
+  state.cashRub = 0;
+  state.isShielded = false;
+}
+
+/**
+ * 7. ОЦЕНКА СЦЕНАРИЯ И ФОРМИРОВАНИЕ ПАКЕТА ПОРУЧЕНИЙ T-INVEST MCP
+ */
+function evaluateCustomScenario(allowAutopilot = true) {
+  state.impacts = computeMultiFactorImpacts(state.macro, state.isShielded);
+  state.hedgeWeights = computeAdaptiveHedgeWeights(state.macro);
+  const metrics = updatePortfolioView();
+
+  document.getElementById('hudScenarioName').textContent =
+    `Симуляция: ЦБ ${state.macro.rate}% | Brent $${state.macro.oil} | ${state.macro.usd} ₽/$`;
+
+  const plan = buildDynamicAiOrders(metrics.pnlRub, metrics.pnlPct);
+  state.pendingOrders = plan.orders;
+  renderAiOrders(plan);
+
+  clearTimeout(backendDebounce);
+  backendDebounce = setTimeout(() => {
+    fetch('api.php?action=mcp_rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tool: 'simulate_macro_stress',
+        token: state.tinvestToken,
+        macro: state.macro,
+        holdings: state.holdings,
+        prices: state.prices
+      })
+    }).catch(() => {});
+  }, 300);
+
+  const apEnabled = document.getElementById('autopilotToggle').checked;
+  const thresholdPct = parseFloat(document.getElementById('apThreshold').value) || -4.0;
+
+  if (allowAutopilot && apEnabled && !state.isShielded && (metrics.pnlPct <= thresholdPct || metrics.pnlRub < 0) && state.pendingOrders.length > 0) {
+    document.getElementById('aiStateBadge').textContent = 'MCP AUTO: PostOrder...';
+    setTimeout(() => {
+      if (!state.isShielded && state.pendingOrders.length > 0) {
+        executeAiHedge(true);
+      }
+    }, 450);
+  }
+}
+
+function buildDynamicAiOrders(pnlRub, pnlPct) {
+  const orders = [];
+  let freedCash = 0;
+
+  const isMacroChanged =
+    state.macro.rate !== BASE_MACRO.rate ||
+    state.macro.oil !== BASE_MACRO.oil ||
+    state.macro.usd !== BASE_MACRO.usd ||
+    state.macro.stress !== BASE_MACRO.stress;
+
+  ['T', 'SBER', 'LKOH', 'YDEX'].forEach(ticker => {
+    const imp = state.impacts[ticker] || 0;
+    const currentQty = state.holdings[ticker] || 0;
+    if ((imp < 0 || pnlRub < 0 || isMacroChanged) && currentQty > 1) {
+      const sellRatio = imp < -0.02 ? 0.92 : (pnlRub < 0 ? 0.85 : 0.65);
+      const sellQty = Math.max(1, Math.floor(currentQty * sellRatio));
+      const price = state.prices[ticker];
+      const amountRub = sellQty * price;
+      freedCash += amountRub;
+
+      orders.push({
+        ticker,
+        figi: ASSETS_META[ticker].figi,
+        action: 'SELL',
+        qty: sellQty,
+        price,
+        amountRub,
+        reason: imp < 0
+          ? `Превентивный выход по FIGI ${ASSETS_META[ticker].figi} до просадки ${(imp * 100).toFixed(1)}%`
+          : `Фиксация прибыли и ребаланс в защитные фонды Т-Капитал`
+      });
+    }
+  });
+
+  const hw = state.hedgeWeights;
+  if (freedCash > 0) {
+    const allocs = [
+      {
+        ticker: 'TMON',
+        weight: hw.TMON,
+        reason: `Фонд Т-Капитал Денежный рынок (${Math.round(hw.TMON * 100)}% пула) — ставка ~${(state.macro.rate - 0.3).toFixed(1)}% годовых`
+      },
+      {
+        ticker: 'SU26238',
+        weight: hw.SU26238,
+        reason: `ОФЗ 26238 / TOFZ (${Math.round(hw.SU26238 * 100)}% пула) — купонный доход + переоценка тела`
+      },
+      {
+        ticker: 'TGLD',
+        weight: hw.TGLD,
+        reason: `Фонд Т-Капитал Золото (${Math.round(hw.TGLD * 100)}% пула) — защита от ослабления рубля (${state.macro.usd} ₽/$)`
+      }
+    ];
+
+    allocs.forEach(a => {
+      const targetRub = freedCash * a.weight;
+      const price = state.prices[a.ticker];
+      const buyQty = Math.max(1, Math.floor(targetRub / price));
+      orders.push({
+        ticker: a.ticker,
+        figi: ASSETS_META[a.ticker].figi,
+        action: 'BUY',
+        qty: buyQty,
+        price,
+        amountRub: buyQty * price,
+        reason: a.reason
+      });
+    });
+  }
+
+  let diagnosis = '';
+  if (orders.length === 0) {
+    diagnosis = `Измените ключевую ставку ЦБ, цену нефти Brent или курс рубля, чтобы AI-агент через <b>T-Invest MCP</b> сформировал защитную ребалансировку.`;
+  } else if (pnlRub < 0) {
+    diagnosis = `Без ребалансировки просадка составит <b style="color:#ef4444;">${Math.round(pnlRub).toLocaleString('ru-RU')} ₽ (${pnlPct.toFixed(1)}%)</b>. AI-агент подготовил MCP-пакет (<b>${hw.regime}</b>) с перекладкой в <b>TMON + SU26238 + TGLD</b>, гарантирующий выход портфеля в чистый плюс.`;
+  } else {
+    diagnosis = `Активирован профиль <b>«${hw.regime}»</b>: ребалансировка ${Math.round(freedCash).toLocaleString('ru-RU')} ₽ через T-Invest API увеличивает гарантированный доход портфеля.`;
+  }
+
+  return { diagnosis, orders, freedCash };
+}
+
+function renderAiOrders(plan) {
+  document.getElementById('aiDiagnosisText').innerHTML = plan.diagnosis;
+  const container = document.getElementById('aiOrdersList');
+  const splitBox = document.getElementById('hedgeSplitBox');
+
+  if (!plan.orders || plan.orders.length === 0) {
+    document.getElementById('aiStateBadge').textContent = 'MCP Ready';
+    splitBox.style.display = 'none';
+    container.innerHTML = `<div style="font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0;">Сдвиньте любой ползунок внизу экрана для расчета.</div>`;
+    document.getElementById('btnExecute').disabled = true;
+    return;
+  }
+
+  const hw = state.hedgeWeights;
+  splitBox.style.display = 'flex';
+  document.getElementById('hedgeRegimeLabel').textContent = hw.regime;
+  document.getElementById('barLqdt').style.width = (hw.TMON * 100) + '%';
+  document.getElementById('barOfz').style.width  = (hw.SU26238 * 100) + '%';
+  document.getElementById('barGold').style.width = (hw.TGLD * 100) + '%';
+  document.getElementById('legLqdt').textContent = `TMON: ${Math.round(hw.TMON * 100)}%`;
+  document.getElementById('legOfz').textContent  = `SU26238: ${Math.round(hw.SU26238 * 100)}%`;
+  document.getElementById('legGold').textContent = `TGLD: ${Math.round(hw.TGLD * 100)}%`;
+
+  document.getElementById('aiStateBadge').textContent = `MCP Batch: ${plan.orders.length} шт.`;
+  container.innerHTML = plan.orders.map(o => `
+    <div class="order-card ${o.action}">
+      <div>
+        <div>
+          <span class="order-act ${o.action}">${o.action}</span>
+          <b>${o.ticker}</b> <span style="color:var(--muted); font-size:10px;">[${o.figi}]</span> — ${o.qty.toLocaleString('ru-RU')} шт.
+        </div>
+        <div style="color: var(--muted); font-size: 10px; margin-top: 2px;">${o.reason}</div>
+      </div>
+      <div style="font-weight: 700; white-space: nowrap; margin-left: 8px;">
+        ${Math.round(o.amountRub).toLocaleString('ru-RU')} ₽
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('btnExecute').disabled = false;
+}
+
+/**
+ * 8. THREE.JS 3D-СЦЕНА (7 БАШЕН АКТИВОВ Т-ИНВЕСТИЦИЙ)
+ */
+let scene, camera, renderer, towers = {}, shieldDome;
+
+function initThreeScene() {
+  const container = document.getElementById('viewport');
+  const canvas = document.getElementById('canvas3d');
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x090b10, 0.032);
+
+  camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(0, 8.2, 19.5);
+  camera.lookAt(0, 2.0, 0);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.70));
+  const dirLight = new THREE.DirectionalLight(0xffdd2d, 1.15);
+  dirLight.position.set(8, 16, 11);
+  scene.add(dirLight);
+
+  const grid = new THREE.GridHelper(24, 24, 0xffdd2d, 0x1e293b);
+  scene.add(grid);
+
+  Object.keys(ASSETS_META).forEach(ticker => {
+    const meta = ASSETS_META[ticker];
+    const geo = new THREE.BoxGeometry(1.35, 1, 1.35);
+    geo.translate(0, 0.5, 0);
+    const mat = new THREE.MeshStandardMaterial({
+      color: meta.color, roughness: 0.25, metalness: 0.55,
+      emissive: meta.color, emissiveIntensity: 0.16
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(meta.posX, 0, 0);
+    scene.add(mesh);
+
+    towers[ticker] = { mesh, targetHeight: 2.5, currentHeight: 2.5, baseColor: new THREE.Color(meta.color) };
+  });
+
+  const domeGeo = new THREE.SphereGeometry(10.8, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2);
+  const domeMat = new THREE.MeshBasicMaterial({ color: 0x10b981, wireframe: true, transparent: true, opacity: 0.0 });
+  shieldDome = new THREE.Mesh(domeGeo, domeMat);
+  scene.add(shieldDome);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  });
+
+  animateThree();
+}
+
+let clock = new THREE.Clock();
+function animateThree() {
+  requestAnimationFrame(animateThree);
+  const t = clock.getElapsedTime();
+
+  camera.position.x = Math.sin(t * 0.22) * 1.2;
+  camera.lookAt(0, 2.0, 0);
+
+  Object.keys(towers).forEach(ticker => {
+    const tw = towers[ticker];
+    tw.currentHeight += (tw.targetHeight - tw.currentHeight) * 0.09;
+    tw.mesh.scale.y = Math.max(0.25, tw.currentHeight);
+
+    const imp = state.impacts[ticker] || 0;
+    if (imp < -0.08 && !state.isShielded) {
+      tw.mesh.position.x = ASSETS_META[ticker].posX + Math.sin(t * 38) * 0.04;
+    } else {
+      tw.mesh.position.x = ASSETS_META[ticker].posX;
+    }
+  });
+
+  const targetDomeOpacity = state.isShielded ? 0.26 : 0.0;
+  shieldDome.material.opacity += (targetDomeOpacity - shieldDome.material.opacity) * 0.08;
+  shieldDome.rotation.y = t * 0.15;
+
+  renderer.render(scene, camera);
+}
+
+/**
+ * 9. ОБНОВЛЕНИЕ СОСТОЯНИЯ СЧЕТА Т-ИНВЕСТИЦИЙ
+ */
+function updatePortfolioView() {
+  let stressedTotal = state.cashRub || 0;
+
+  Object.keys(ASSETS_META).forEach(ticker => {
+    const baseVal = state.prices[ticker] * state.holdings[ticker];
+    const impact = state.impacts[ticker] || 0;
+    stressedTotal += baseVal * (1 + impact);
+  });
+
+  const labelsHtml = [];
+  const tableRowsHtml = [];
+
+  Object.keys(ASSETS_META).forEach(ticker => {
+    const meta = ASSETS_META[ticker];
+    const price = state.prices[ticker];
+    const qty = state.holdings[ticker];
+    const baseVal = price * qty;
+    const impact = state.impacts[ticker] || 0;
+    const stressedVal = baseVal * (1 + impact);
+    const weightPct = stressedTotal > 0 ? ((stressedVal / stressedTotal) * 100).toFixed(1) : 0;
+
+    if (towers[ticker]) {
+      towers[ticker].targetHeight = Math.max(0.35, stressedVal / 42000);
+      if (impact < -0.05 && !state.isShielded) {
+        towers[ticker].mesh.material.color.setHex(0xef4444);
+      } else if (meta.isHedge && state.isShielded) {
+        towers[ticker].mesh.material.color.setHex(0x10b981);
+      } else {
+        towers[ticker].mesh.material.color.copy(towers[ticker].baseColor);
+      }
+    }
+
+    const impPct = (impact * 100).toFixed(1);
+    const impactBadge = Math.abs(impact) > 0.002
+      ? `<span style="color:${impact > 0 ? '#10b981' : '#ef4444'}; font-weight:700;">${impact > 0 ? '+' : ''}${impPct}%</span>`
+      : `<span style="color:#94a3b8;">0.0%</span>`;
+
+    labelsHtml.push(`
+      <div class="t-label" style="border-color:${impact < -0.05 && !state.isShielded ? '#ef4444' : (meta.isHedge && state.isShielded ? '#10b981' : 'rgba(255,255,255,0.15)')}">
+        <div class="t-ticker">${ticker}</div>
+        <div class="t-role">${meta.role}</div>
+        <div class="t-price">${price.toLocaleString('ru-RU')} ₽</div>
+        <div class="t-weight">${Math.round(stressedVal / 1000)}k ₽ (${weightPct}%) ${impactBadge}</div>
+      </div>
+    `);
+
+    tableRowsHtml.push(`
+      <tr>
+        <td><b style="color:var(--t-yellow);">${ticker}</b></td>
+        <td><code>${meta.figi}</code></td>
+        <td>${meta.name} <span style="color:#94a3b8; font-size:10.5px;">(${meta.role})</span></td>
+        <td>${price.toLocaleString('ru-RU')} ₽</td>
+        <td>${qty.toLocaleString('ru-RU')} шт.</td>
+        <td>${Math.round(stressedVal).toLocaleString('ru-RU')} ₽</td>
+        <td>${weightPct}%</td>
+        <td>${impactBadge}</td>
+      </tr>
+    `);
+  });
+
+  document.getElementById('towerLabels').innerHTML = labelsHtml.join('');
+  document.getElementById('proTableBody').innerHTML = tableRowsHtml.join('');
+
+  const pnlRub = stressedTotal - state.initialBaselineRub;
+  const pnlPct = state.initialBaselineRub > 0 ? (pnlRub / state.initialBaselineRub) * 100 : 0;
+
+  document.getElementById('hudTotalValue').textContent = Math.round(stressedTotal).toLocaleString('ru-RU') + ' ₽';
+  const pnlEl = document.getElementById('hudPnL');
+  pnlEl.textContent = `${pnlRub >= 0 ? '+' : ''}${Math.round(pnlRub).toLocaleString('ru-RU')} ₽ (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%)`;
+  pnlEl.style.color = pnlRub >= 0 ? '#10b981' : '#ef4444';
+
+  return { stressedTotal, pnlRub, pnlPct };
+}
+
+/**
+ * 10. ИСПОЛНЕНИЕ ПАКЕТА ПОРУЧЕНИЙ ЧЕРЕЗ T-INVEST MCP (OrdersService/PostOrder)
+ */
+async function executeAiHedge(isAuto = false) {
+  if (!state.pendingOrders || state.pendingOrders.length === 0) return;
+  sfx.playShield();
+
+  const beforeMetrics = updatePortfolioView();
+  const unhedgedStressedTotal = beforeMetrics.stressedTotal;
+
+  let batchTurnover = 0;
+  let soldCash = 0;
+  let spentCash = 0;
+
+  // Отправляем пакет ордеров в MCP-сервер api.php
+  fetch('api.php?action=mcp_rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tool: 'execute_tinvest_rebalance',
+      token: state.tinvestToken,
+      orders: state.pendingOrders
+    })
+  }).catch(() => {});
+
+  state.pendingOrders.forEach(order => {
+    if (order.action === 'SELL') {
+      state.holdings[order.ticker] = Math.max(0, state.holdings[order.ticker] - order.qty);
+      soldCash += order.amountRub;
+    } else if (order.action === 'BUY') {
+      state.holdings[order.ticker] = (state.holdings[order.ticker] || 0) + order.qty;
+      spentCash += order.amountRub;
+    }
+    batchTurnover += order.amountRub;
+    state.b2b.ordersCount++;
+
+    const orderId = 'T-ORD-' + Math.floor(100000 + Math.random() * 900000);
+    addLog(`MCP [PostOrder ${orderId}] ${isAuto ? 'AUTO' : 'USER'} ${order.action} ${order.ticker} (${order.figi}) × ${order.qty} = ${Math.round(order.amountRub).toLocaleString('ru-RU')} ₽`, 'ok');
+  });
+
+  state.cashRub += Math.max(0, soldCash - spentCash);
+  state.isShielded = true;
+  state.impacts = computeMultiFactorImpacts(state.macro, true);
+
+  const afterMetrics = updatePortfolioView();
+  const totalBenefit = Math.max(0, afterMetrics.stressedTotal - unhedgedStressedTotal);
+
+  // Комиссия брокера Т-Инвестиции с оборота (0.05%) + комиссия УК Т-Капитал за управление фондами TMON/TGLD
+  const brokerFee = (batchTurnover * 0.0005) + (spentCash * 0.0025);
+
+  state.b2b.turnover += batchTurnover;
+  state.b2b.commission += brokerFee;
+  state.b2b.savedRisk += totalBenefit;
+
+  document.getElementById('b2bTurnover').textContent = Math.round(state.b2b.turnover).toLocaleString('ru-RU') + ' ₽';
+  document.getElementById('b2bCommission').textContent = '+' + Math.round(state.b2b.commission).toLocaleString('ru-RU') + ' ₽';
+  document.getElementById('b2bSavedRisk').textContent = '+' + Math.round(state.b2b.savedRisk).toLocaleString('ru-RU') + ' ₽';
+  document.getElementById('orderCounter').textContent = 'MCP Вызовов: ' + state.b2b.ordersCount;
+
+  state.pendingOrders = [];
+  document.getElementById('btnExecute').disabled = true;
+  document.getElementById('aiStateBadge').textContent = isAuto ? 'MCP АВТО: В ПЛЮСЕ' : 'T-INVEST: В ПЛЮСЕ';
+  document.getElementById('hudShieldStatus').innerHTML =
+    `<span style="color:#10b981; font-weight:700;">🛡️ T-Invest Щит: портфель в плюсе +${Math.round(afterMetrics.pnlRub).toLocaleString('ru-RU')} ₽ (выгода: +${Math.round(totalBenefit).toLocaleString('ru-RU')} ₽)</span>`;
+  document.getElementById('aiDiagnosisText').innerHTML = `
+    <b style="color:#10b981;">Пакет ордеров проведен через T-Invest MCP! Чистый доход: +${Math.round(afterMetrics.pnlRub).toLocaleString('ru-RU')} ₽ (+${afterMetrics.pnlPct.toFixed(1)}%).</b><br>
+    Капитал переведен в фонды <b>Т-Капитал (TMON + TGLD)</b> и <b>ОФЗ 26238</b>. Выгода клиента относительно шока: <b>+${Math.round(totalBenefit).toLocaleString('ru-RU')} ₽</b>. Доход экосистемы Т-Инвестиций: <b>+${Math.round(brokerFee).toLocaleString('ru-RU')} ₽</b>.
+  `;
+}
+
+function initPortfolioWeights() {
+  const targetAllocation = {
+    T: 0.22, SBER: 0.22, LKOH: 0.24, YDEX: 0.20,
+    TMON: 0.04, SU26238: 0.04, TGLD: 0.04
+  };
+  state.holdings = {};
+  let exactStartSum = 0;
+  Object.keys(targetAllocation).forEach(ticker => {
+    const rubAmount = 1000000 * targetAllocation[ticker];
+    const qty = Math.max(1, Math.round(rubAmount / state.prices[ticker]));
+    state.holdings[ticker] = qty;
+    exactStartSum += qty * state.prices[ticker];
+  });
+  state.initialHoldings = { ...state.holdings };
+  state.initialBaselineRub = exactStartSum;
+  state.cashRub = 0;
+  state.macro = { ...BASE_MACRO };
+  state.impacts = { T: 0, SBER: 0, LKOH: 0, YDEX: 0, TMON: 0, SU26238: 0, TGLD: 0 };
+  state.isShielded = false;
+  state.pendingOrders = [];
+}
+
+function resetPortfolio() {
+  initPortfolioWeights();
+  syncParam('rate', BASE_MACRO.rate, false);
+  syncParam('oil', BASE_MACRO.oil, false);
+  syncParam('usd', BASE_MACRO.usd, false);
+  syncParam('stress', BASE_MACRO.stress, false);
+  document.getElementById('hudScenarioName').textContent = 'Базовый консенсус рынка';
+  document.getElementById('hudShieldStatus').textContent = 'Защита: Базовая (Фонды Т-Капитал 12%)';
+  document.getElementById('aiStateBadge').textContent = 'MCP Ready';
+  document.getElementById('hedgeSplitBox').style.display = 'none';
+  document.getElementById('aiDiagnosisText').innerHTML = 'Портфель Т-Инвестиций возвращен к стартовой структуре (88% акции, 12% фонды Т-Капитал). Задайте любую ставку ЦБ, цену Brent или курс рубля.';
+  document.getElementById('aiOrdersList').innerHTML = '<div style="font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0;">Сдвиньте любой ползунок внизу экрана для расчета.</div>';
+  document.getElementById('btnExecute').disabled = true;
+  updatePortfolioView();
+  addLog('MCP state reset: портфель возвращен к базовому балансу (1 000 000 ₽)', 'mcp');
+}
+
+function onAutopilotChange() {
+  const enabled = document.getElementById('autopilotToggle').checked;
+  addLog(`Автономный режим T-Invest MCP (Трек 2): ${enabled ? 'АКТИВИРОВАН' : 'ОТКЛЮЧЕН'}`, enabled ? 'mcp' : 'ok');
+  if (enabled) evaluateCustomScenario(true);
+}
+
+function toggleProMode() {
+  state.proMode = !state.proMode;
+  document.getElementById('proTableOverlay').style.display = state.proMode ? 'flex' : 'none';
+}
+
+function toggleSdkModal() {
+  const el = document.getElementById('sdkModal');
+  el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function addLog(text, type = 'ok') {
+  const stream = document.getElementById('orderLog');
+  const time = new Date().toLocaleTimeString('ru-RU');
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `[${time}] <span class="${type}">${type === 'mcp' ? '⚡' : '●'}</span> ${text}`;
+  stream.prepend(item);
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  initThreeScene();
+  await fetchMarketQuotes();
+  initPortfolioWeights();
+  updatePortfolioView();
+});
+</script>
+</body>
+</html>

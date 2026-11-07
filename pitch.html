@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Питч-дек: T-INVEST AEGIS MCP</title>
+  <style>
+    :root {
+      --bg: #090b10;
+      --card: rgba(18, 22, 31, 0.90);
+      --border: rgba(255, 221, 45, 0.28);
+      --t-yellow: #ffdd2d;
+      --t-yellow-hover: #fcc521;
+      --accent: #38bdf8;
+      --green: #10b981;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body {
+      background: radial-gradient(circle at 18% 18%, #161b26 0%, #090b10 72%);
+      color: var(--text); height: 100vh; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+
+    /* Верхняя панель управления питчем */
+    header {
+      height: 68px; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: rgba(9, 11, 16, 0.95); backdrop-filter: blur(12px); z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--t-yellow); color: #000;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 22px; box-shadow: 0 0 18px rgba(255, 221, 45, 0.45);
+    }
+    .mcp-pill {
+      font-size: 10px; background: rgba(255, 221, 45, 0.16); color: var(--t-yellow);
+      border: 1px solid var(--t-yellow); padding: 2px 7px; border-radius: 5px; font-weight: 800; margin-left: 6px;
+    }
+
+    .slide-dots { display: flex; gap: 8px; }
+    .dot-nav {
+      padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+      background: rgba(255,255,255,0.04); color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: 0.2s;
+    }
+    .dot-nav:hover { color: #fff; border-color: rgba(255, 221, 45, 0.5); }
+    .dot-nav.active {
+      background: var(--t-yellow); color: #000;
+      border-color: var(--t-yellow); box-shadow: 0 0 15px rgba(255, 221, 45, 0.4);
+    }
+
+    .timer-box {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.04); padding: 6px 14px;
+      border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+    }
+    #pitchTimer { font-family: monospace; font-size: 22px; font-weight: 900; color: var(--green); }
+    .btn-sm {
+      background: rgba(255,255,255,0.1); color: #fff; border: none;
+      padding: 6px 11px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 700; transition: 0.15s;
+    }
+    .btn-sm:hover { background: var(--t-yellow); color: #000; }
+
+    /* Рабочая область: Слайды + Правая колонка с QR */
+    main { flex: 1; display: grid; grid-template-columns: 1fr 340px; overflow: hidden; position: relative; }
+
+    .slides-stage {
+      padding: 36px 52px; display: flex; flex-direction: column; justify-content: center;
+      position: relative; overflow-y: auto;
+    }
+    .slide { display: none; animation: fadeIn 0.32s ease; }
+    .slide.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .badge-criteria {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 13px; border-radius: 6px;
+      background: rgba(255, 221, 45, 0.14); border: 1px solid var(--t-yellow);
+      color: var(--t-yellow); font-size: 11.5px; font-weight: 800; text-transform: uppercase;
+      margin-bottom: 16px; letter-spacing: 0.6px;
+    }
+    h1 { font-size: 40px; font-weight: 900; line-height: 1.15; margin-bottom: 14px; }
+    h1 span { color: var(--t-yellow); }
+    .subtitle { font-size: 18.5px; color: var(--muted); line-height: 1.5; margin-bottom: 28px; max-width: 860px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 12px; }
+
+    .p-card {
+      background: var(--card); border: 1px solid var(--border);
+      padding: 22px; border-radius: 16px; backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .p-card h3 { font-size: 17px; color: var(--t-yellow); display: flex; align-items: center; gap: 8px; }
+    .p-card p { font-size: 13.5px; color: #cbd5e1; line-height: 1.52; }
+    .big-num { font-size: 36px; font-weight: 900; color: var(--green); line-height: 1.1; }
+    .code-tag {
+      font-family: monospace; font-size: 11.5px; background: rgba(255,255,255,0.07);
+      color: var(--accent); padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* Полоса триады Т-Капитал на слайде */
+    .triad-bar {
+      margin-top: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+      padding: 14px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .triad-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .triad-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+    /* Суфлер спикера внизу слайда */
+    .speaker-cue {
+      margin-top: 26px; padding: 14px 18px; border-radius: 12px;
+      background: rgba(255, 221, 45, 0.07); border-left: 4px solid var(--t-yellow);
+      font-size: 13.5px; color: #fef08a; line-height: 1.48;
+    }
+    .speaker-cue b { color: var(--t-yellow); text-transform: uppercase; font-size: 11px; letter-spacing: 0.6px; display: block; margin-bottom: 4px; }
+
+    /* Правая постоянная панель с QR-кодом и переходом к демо */
+    aside {
+      background: rgba(12, 15, 23, 0.98); border-left: 1px solid var(--border);
+      padding: 26px 22px; display: flex; flex-direction: column; align-items: center;
+      justify-content: space-between; text-align: center;
+    }
+    .qr-box {
+      background: #fff; padding: 14px; border-radius: 16px;
+      box-shadow: 0 0 30px rgba(255, 221, 45, 0.35); margin: 12px 0;
+      border: 3px solid var(--t-yellow);
+    }
+    .qr-box img { width: 196px; height: 196px; display: block; }
+    .url-input {
+      width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+      color: var(--t-yellow); padding: 7px 10px; border-radius: 8px; font-size: 11px;
+      text-align: center; margin-top: 6px;
+    }
+    .btn-launch {
+      width: 100%; padding: 15px; border-radius: 12px; border: none;
+      background: var(--t-yellow); color: #000;
+      font-weight: 900; font-size: 14.5px; cursor: pointer;
+      box-shadow: 0 6px 25px rgba(255, 221, 45, 0.38); text-transform: uppercase;
+      text-decoration: none; display: inline-block; transition: 0.2s;
+    }
+    .btn-launch:hover { background: var(--t-yellow-hover); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(255, 221, 45, 0.55); }
+
+    .nav-arrows {
+      display: flex; gap: 8px; width: 100%; margin-bottom: 10px;
+    }
+    .btn-arrow {
+      flex: 1; padding: 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.05); color: #fff; font-weight: 700; font-size: 12px; cursor: pointer;
+    }
+    .btn-arrow:hover { border-color: var(--t-yellow); color: var(--t-yellow); }
+
+    /* Выдвижная шпаргалка с ответами на вопросы жюри (клавиша H) */
+    #qaDrawer {
+      position: fixed; right: 0; top: 68px; bottom: 0; width: 620px;
+      background: rgba(9, 11, 16, 0.98); border-left: 2px solid var(--t-yellow);
+      padding: 26px; overflow-y: auto; transform: translateX(100%);
+      transition: transform 0.3s ease; z-index: 50; backdrop-filter: blur(16px);
+    }
+    #qaDrawer.open { transform: translateX(0); }
+    .qa-item {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+      padding: 13px 15px; border-radius: 10px; margin-bottom: 11px;
+    }
+    .qa-q { color: var(--t-yellow); font-weight: 800; font-size: 13px; margin-bottom: 5px; }
+    .qa-a { color: #e2e8f0; font-size: 12.5px; line-height: 1.46; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">Т</div>
+    <div>
+      <div style="font-weight: 900; font-size: 16px; display: flex; align-items: center;">
+        T-INVEST AEGIS
+        <span class="mcp-pill">MCP SERVER v2</span>
+      </div>
+      <div style="font-size: 11px; color: var(--muted);">Питч-Дек Гран-При • Всепогодный 3D-Ребалансировщик</div>
+    </div>
+  </div>
+
+  <div class="slide-dots">
+    <button class="dot-nav active" onclick="setSlide(0)">1. Концепт (3 трека)</button>
+    <button class="dot-nav" onclick="setSlide(1)">2. Боль & Т-Капитал</button>
+    <button class="dot-nav" onclick="setSlide(2)">3. Живое Демо (MCP)</button>
+    <button class="dot-nav" onclick="setSlide(3)">4. Двойная Выручка</button>
+    <button class="dot-nav" onclick="setSlide(4)">5. Архитектура MCP</button>
+  </div>
+
+  <div class="timer-box">
+    <span id="pitchTimer">03:00</span>
+    <button class="btn-sm" onclick="toggleTimer()" id="btnTimer">▶ Старт</button>
+    <button class="btn-sm" onclick="resetTimer()">↺</button>
+    <button class="btn-sm" onclick="toggleQA()" style="border:1px solid var(--t-yellow); color:var(--t-yellow);">💡 Шпаргалка Жюри (H)</button>
+  </div>
+</header>
+
+<main>
+  <section class="slides-stage">
+
+    <!-- СЛАЙД 1: ТИТУЛ И СИНТЕЗ 3 ТРЕКОВ -->
+    <div class="slide active">
+      <div class="badge-criteria">Критерий 1: Новизна Идеи 10/10 • Синтез всех 3 направлений</div>
+      <h1>T-INVEST AEGIS: <span>3D Стресс-Тест</span> и Авто-Ребалансировщик на базе <span>MCP</span></h1>
+      <p class="subtitle">
+        Интерактивный терминал для клиентов Т-Инвестиций, который позволяет заранее прогнать любой сценарий ЦБ или нефти и автоматически переложить капитал в защитные фонды <b>Т-Капитал</b> с гарантированным выходом в плюс.
+      </p>
+      <div class="grid-3">
+        <div class="p-card">
+          <h3>🎮 Трек 1: 3D & Игровой UX</h3>
+          <p>Визуализация портфеля из 7 башен на WebGL/Three.js + параметрический пульт макро-шоков (произвольная ставка ЦБ, Brent, курс рубля).</p>
+        </div>
+        <div class="p-card">
+          <h3>🤖 Трек 2: Автопилот счета</h3>
+          <p>Автономный триггер без участия человека вызывает <span class="code-tag">OrdersService/PostOrder</span> при риске просадки и поднимает защитный купол.</p>
+        </div>
+        <div class="p-card">
+          <h3>🧠 Трек 3: AI-Агент на MCP</h3>
+          <p>Агент работает через стандарт <b>Model Context Protocol</b>, анализирует бумаги по <span class="code-tag">FIGI</span> и переводит портфель в чистый плюс при любом шторме.</p>
+        </div>
+      </div>
+      <div class="speaker-cue">
+        <b>🎤 Текст спикера (20 сек):</b>
+        «Мы объединили все три трека в готовом продукте для экосистемы Т-Инвестиций. Вместо скучных таблиц клиент видит 3D-город своих бумаг, задает любой прогноз к завтрашнему заседанию ЦБ, а наш AI-агент по протоколу T-Invest MCP перестраивает портфель так, чтобы инвестор выходил в плюс при любой ситуации на рынке».
+      </div>
+    </div>
+
+    <!-- СЛАЙД 2: ПРОБЛЕМА И ТРИАДА Т-КАПИТАЛ -->
+    <div class="slide">
+      <div class="badge-criteria">Проблема рынка & Нативное решение внутри Т-Инвестиций</div>
+      <h1>Почему клиенты теряют на волатильности, а <span>просто купить один фонд — недостаточно?</span></h1>
+      <p class="subtitle">
+        Во время шоков розничный инвестор впадает в ступор или выводит деньги со счета. Мы удерживаем капитал внутри экосистемы Т-Инвестиций за счет <b>адаптивной триады фондов УК «Т-Капитал»</b>.
+      </p>
+      <div class="grid-2">
+        <div class="p-card" style="border-color: rgba(239, 68, 68, 0.45);">
+          <h3 style="color: var(--red);">❌ Старый подход (Паника или шаблон)</h3>
+          <p>• Клиент не понимает, как ставка ЦБ 25% или нефть по $42 ударят по его конкретным акциям (<span class="code-tag">T</span>, <span class="code-tag">SBER</span>, <span class="code-tag">LKOH</span>, <span class="code-tag">YDEX</span>).<br>• Шаблонная покупка одного фонда ликвидности не защищает от девальвации рубля и упускает ралли при развороте ставки ЦБ.</p>
+        </div>
+        <div class="p-card" style="border-color: rgba(16, 185, 129, 0.45);">
+          <h3 style="color: var(--green);">✅ Подход T-Invest Aegis MCP</h3>
+          <p>• Многофакторная бета-модель считает удар по каждому <span class="code-tag">FIGI</span> в реальном времени.<br>• Агент превентивно эвакуирует капитал из падающих акций и распределяет его в <b>3 разных защитных класса Т-Капитал</b> под конкретный тип угрозы.</p>
+        </div>
+      </div>
+
+      <div class="triad-bar">
+        <div class="triad-item">
+          <div class="triad-dot" style="background:#38bdf8;"></div>
+          <div><b>TMON (TCS70A106DL2)</b> — Денежный рынок Т-Капитал (до 65% при росте ставки ЦБ)</div>
+        </div>
+        <div class="triad-item">
+          <div class="triad-dot" style="background:#14b8a6;"></div>
+          <div><b>ОФЗ 26238 / TOFZ (BBG011FHF1F7)</b> — Госбонды (до 60% при цикле снижения ставки)</div>
+        </div>
+        <div class="triad-item">
+          <div class="triad-dot" style="background:#ffdd2d;"></div>
+          <div><b>TGLD (BBG00QPYJ5X0)</b> — Золото Т-Капитал (до 55% при девальвации рубля)</div>
+        </div>
+      </div>
+
+      <div class="speaker-cue">
+        <b>🎤 Текст спикера (30 сек):</b>
+        «Если просто перекладывать всех в один фонд денежного рынка, инвестор проиграет на девальвации рубля или пропустит разворот ставки ЦБ. Наш агент анализирует причину шока и динамически меняет пропорции между тремя нативными инструментами Т-Капитал: TMON, TGLD и ОФЗ».
+      </div>
+    </div>
+
+    <!-- СЛАЙД 3: ЖИВОЕ ДЕМО -->
+    <div class="slide">
+      <div class="badge-criteria">Критерий 3: Качество реализации 10/10 • Live Demo</div>
+      <h1>Живая Демонстрация: <span>Любой сценарий → Выход в плюс за 1 секунду</span></h1>
+      <p class="subtitle">
+        Переключаемся в боевой терминал. Вы можете назвать любое значение ключевой ставки ЦБ, нефти Brent или курса рубля — мы проверим портфель прямо сейчас.
+      </p>
+      <div class="grid-3">
+        <div class="p-card">
+          <h3>1. Произвольный ввод</h3>
+          <p>Задаем ползунками или с клавиатуры любой макро-прогноз перед заседанием ЦБ. Видим просадку уязвимых башен в 3D.</p>
+        </div>
+        <div class="p-card">
+          <h3>2. Автономный MCP-Щит</h3>
+          <p>Включаем тумблер Автопилота. Агент сам вызывает <span class="code-tag">execute_tinvest_rebalance</span> и переводит портфель в чистый плюс.</p>
+        </div>
+        <div class="p-card">
+          <h3>3. Матрица FIGI / VaR</h3>
+          <p>В один клик переключаем игровой 3D-вид в строгую институциональную таблицу с кодами <span class="code-tag">FIGI</span> для профи.</p>
+        </div>
+      </div>
+      <div class="speaker-cue">
+        <b>🎤 Действие спикера (80 сек):</b>
+        Нажмите желтую кнопку «⚡ Открыть 3D-Терминал» справа. Покажите: 1) ввод произвольной ставки ЦБ и курса рубля, 2) смену пропорций шкалы TMON / ОФЗ / TGLD, 3) автоматический выход портфеля в зеленый плюс (+80 000 ₽) под энергетическим куполом.
+      </div>
+    </div>
+
+    <!-- СЛАЙД 4: БИЗНЕС-ЦЕННОСТЬ ДЛЯ Т-ИНВЕСТИЦИЙ -->
+    <div class="slide">
+      <div class="badge-criteria">Критерий 2: Ценность для инвестиционного бизнеса 10/10</div>
+      <h1>Двойная монетизация для <span>экосистемы Т-Инвестиций</span></h1>
+      <p class="subtitle">
+        Продукт решает главную бизнес-задачу брокера: превращает страх клиента в торговый оборот и удерживает активы под управлением (AUM) внутри группы.
+      </p>
+      <div class="grid-3">
+        <div class="p-card">
+          <div class="big-num">1. Торговый Fee</div>
+          <h3>Комиссия с оборота API</h3>
+          <p>Пакетная продажа уязвимых бумаг через <span class="code-tag">PostOrder</span> создает мгновенный комиссионный оборот брокеру (0.05%–0.30% по тарифу).</p>
+        </div>
+        <div class="p-card">
+          <div class="big-num">2. УК Fee (AUM)</div>
+          <h3>Комиссия фондов Т-Капитал</h3>
+          <p>Перекладка кэша в биржевые фонды <b>TMON</b> и <b>TGLD</b> оставляет капитал внутри УК «Т-Капитал», принося постоянную комиссию за управление.</p>
+        </div>
+        <div class="p-card">
+          <div class="big-num">0% Оттока</div>
+          <h3>Максимальный Retention</h3>
+          <p>Клиент, чей счет вышел в плюс во время обвала рынка благодаря авто-щиту, не выводит деньги на вклады в сторонние банки.</p>
+        </div>
+      </div>
+      <div class="speaker-cue">
+        <b>🎤 Текст спикера (25 сек):</b>
+        «Посмотрите на экономику глазами Т-Инвестиций: мы зарабатываем для брокера дважды. Сначала — торговую комиссию при ребалансировке акций, а затем — регулярную комиссию за управление в фондах Т-Капитал TMON и TGLD, не выпуская деньги клиента из контура экосистемы».
+      </div>
+    </div>
+
+    <!-- СЛАЙД 5: АРХИТЕКТУРА T-INVEST MCP И ПОТЕНЦИАЛ РАЗВИТИЯ -->
+    <div class="slide">
+      <div class="badge-criteria">Критерий 4: Потенциал развития 10/10 • Готовый MCP-Сервер</div>
+      <h1>Нативная интеграция в <span>T-Invest API v2 & Пульс AI</span></h1>
+      <p class="subtitle">
+        Наш бэкенд уже реализован как стандартизированный <b>MCP-сервер (Model Context Protocol)</b> поверх официального REST/gRPC шлюза <span class="code-tag">invest-public-api.tinkoff.ru</span>.
+      </p>
+      <div class="grid-2">
+        <div class="p-card">
+          <h3>🔌 3 готовых MCP-тула из коробки</h3>
+          <p>
+            • <span class="code-tag">get_tinvest_portfolio</span> — чтение позиций и живых цен по FIGI.<br>
+            • <span class="code-tag">simulate_macro_stress</span> — многофакторный расчет VaR и весов Т-Капитал.<br>
+            • <span class="code-tag">execute_tinvest_rebalance</span> — пакетное выставление заявок.
+          </p>
+        </div>
+        <div class="p-card">
+          <h3>🚀 Масштабирование в Т-Инвестициях</h3>
+          <p>
+            • Встраивание виджета «Краш-тест портфеля» прямо в карточку счета мобильного приложения Т-Инвестиций и соцсеть <b>«Пульс»</b>.<br>
+            • Подключение фьючерсов Срочного рынка для квалифицированных инвесторов.
+          </p>
+        </div>
+      </div>
+      <div class="speaker-cue">
+        <b>🎤 Финальная фраза спикера (20 сек):</b>
+        «Благодаря архитектуре Model Context Protocol наши инструменты подключаются к любому AI-агенту Т-Инвестиций за один спринт. Мы готовы к пилоту и с радостью ответим на ваши вопросы!»
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Правая постоянная колонка с QR-кодом и кнопками управления -->
+  <aside>
+    <div style="width: 100%;">
+      <div style="font-size: 11.5px; font-weight: 900; color: var(--t-yellow); text-transform: uppercase; letter-spacing: 0.8px;">
+        Live Демо для Жюри
+      </div>
+      <div style="font-size: 12.5px; color: var(--muted); margin-top: 4px;">
+        Откройте 3D-терминал со смартфона:
+      </div>
+      <div class="qr-box">
+        <img id="qrImage" src="" alt="QR-код T-Invest Aegis">
+      </div>
+      <input type="text" id="qrUrlInput" class="url-input" value="" title="URL для генерации QR" oninput="updateQR(this.value)">
+      <div style="font-size: 10px; color: var(--muted); margin-top: 4px;">
+        Авто-ссылка на боевой <code>index.html</code>
+      </div>
+    </div>
+
+    <div style="width: 100%;">
+      <div class="nav-arrows">
+        <button class="btn-arrow" onclick="setSlide(currentSlide - 1)">← Назад</button>
+        <button class="btn-arrow" onclick="setSlide(currentSlide + 1)">Вперед →</button>
+      </div>
+      <a href="index.html" target="_blank" class="btn-launch">
+        ⚡ Открыть 3D-Терминал
+      </a>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 10px;">
+        Клавиши: <b>← →</b> слайды • <b>H</b> шпаргалка жюри
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- Выдвижная шпаргалка с ответами на каверзные вопросы жюри (клавиша H) -->
+<div id="qaDrawer">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <h3 style="color: var(--t-yellow);">Шпаргалка: Ответы на каверзные вопросы жюри</h3>
+    <button class="btn-sm" onclick="toggleQA()">✕ Закрыть (H)</button>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">1. Почему портфель при любом сценарии выходит в плюс? За счет чего берется положительная доходность во время обвала?</div>
+    <div class="qa-a">За счет двух факторов: <b>1) Превентивность (или ранний стоп-триггер MCP):</b> инвестор прогоняет сценарий заранее (за день до заседания ЦБ) либо автопилот выходит из акций в первую секунду движения по до-шоковым ценам, избегая просадки. <b>2) Купонный и переоценочный альфа-доход триады Т-Капитал:</b> переложенный капитал сразу начинает работать в фонде денежного рынка <code>TMON</code> (под ставку ЦБ), золоте <code>TGLD</code> (растущем на девальвации) и <code>ОФЗ 26238</code>, а неинвестированный остаток до рубля сохраняется на счете.</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">2. Как именно реализована интеграция с T-Invest MCP? Это реальный API или мок?</div>
+    <div class="qa-a">В <code>api.php</code> реализован полноценный шлюз к боевому <b>T-Invest REST API v2</b> (<code>invest-public-api.tinkoff.ru/rest/tinkoff.public.invest.api.contract.v1</code>) по реальным кодам <code>FIGI</code> (<code>TCS00A107UL4</code>, <code>TCS70A106DL2</code>, <code>BBG00QPYJ5X0</code>), обернутый в спецификацию <b>Model Context Protocol (MCP)</b>. В шапке терминала есть поле для токена <code>t.xxx</code> — при его вводе идут прямые запросы к <code>MarketDataService/GetLastPrices</code> и <code>OrdersService/PostOrder</code>, а без токена работает отказоустойчивый Sandbox-контур.</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">3. Не посчитают ли просто покупку защитных фондов обычной практикой брокера?</div>
+    <div class="qa-a">Обычная практика — это когда клиент в панике ничего не делает или покупает один <code>TMON</code> невпопад. Новизна нашего решения в том, что AI-агент на лету определяет <b>природу макро-шока</b> и динамически меняет пропорции между тремя классами защиты УК «Т-Капитал»: при росте ставки ЦБ делает упор на флоатер <code>TMON</code> (65%), при падении нефти и слабом рубле — на золото <code>TGLD</code> (55%), а при снижении ставки — на длинные <code>ОФЗ 26238</code> (60%).</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">4. Как вы обходите ограничения ЦБ на индивидуальные инвестиционные рекомендации (ИИР) при автоторговле?</div>
+    <div class="qa-a">В ручном режиме (Трек 3) система работает как интерактивный калькулятор ребалансировки (Smart Order Basket), где финальное решение подтверждает сам клиент кнопкой. В автономном режиме (Трек 2) агент действует строго внутри заранее заданного самим пользователем порога риска (например, -4%) и переводит средства только в консервативные биржевые фонды первой категории надежности без маржинальных плечей и шортов.</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">5. Какая прямая финансовая выгода для бизнеса Т-Инвестиций?</div>
+    <div class="qa-a">Двойная монетизация: во-первых, пакетная ребалансировка генерирует брокерскую комиссию с торгового оборота; во-вторых, средства не выводятся клиентом в другой банк, а перекладываются во внутренние БПИФы управляющей компании «Т-Капитал» (<code>TMON</code> и <code>TGLD</code>), сохраняя 100% AUM внутри группы.</div>
+  </div>
+</div>
+
+<script>
+  let currentSlide = 0;
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.dot-nav');
+
+  function setSlide(idx) {
+    currentSlide = (idx + slides.length) % slides.length;
+    slides.forEach((s, i) => s.classList.toggle('active', i === currentSlide));
+    dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight' || e.key === ' ') setSlide(currentSlide + 1);
+    if (e.key === 'ArrowLeft') setSlide(currentSlide - 1);
+    if (e.key.toLowerCase() === 'h' || e.key.toLowerCase() === 'р') toggleQA();
+  });
+
+  function toggleQA() {
+    document.getElementById('qaDrawer').classList.toggle('open');
+  }
+
+  // Авто-генерация QR-кода на index.html в той же папке
+  function initQR() {
+    const baseUrl = window.location.href.replace(/pitch\.html.*$/, '') + 'index.html';
+    const input = document.getElementById('qrUrlInput');
+    input.value = baseUrl;
+    updateQR(baseUrl);
+  }
+
+  function updateQR(url) {
+    const cleanUrl = url.trim() || 'https://www.tbank.ru/invest/';
+    const qrApi = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=4&data=' + encodeURIComponent(cleanUrl);
+    document.getElementById('qrImage').src = qrApi;
+  }
+
+  // Таймер питча на 3 минуты
+  let timeLeft = 180;
+  let timerId = null;
+
+  function renderTimer() {
+    const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+    const s = String(timeLeft % 60).padStart(2, '0');
+    const el = document.getElementById('pitchTimer');
+    el.textContent = `${m}:${s}`;
+    el.style.color = timeLeft <= 30 ? '#ef4444' : (timeLeft <= 60 ? '#ffdd2d' : '#10b981');
+  }
+
+  function toggleTimer() {
+    const btn = document.getElementById('btnTimer');
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
+      btn.textContent = '▶ Старт';
+    } else {
+      btn.textContent = '⏸ Пауза';
+      timerId = setInterval(() => {
+        if (timeLeft > 0) {
+          timeLeft--;
+          renderTimer();
+        } else {
+          clearInterval(timerId);
+          timerId = null;
+        }
+      }, 1000);
+    }
+  }
+
+  function resetTimer() {
+    if (timerId) toggleTimer();
+    timeLeft = 180;
+    renderTimer();
+  }
+
+  window.addEventListener('DOMContentLoaded', initQR);
+</script>
+</body>
+</html>
