@@ -2,14 +2,14 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>T-Invest Aegis MCP — 3D Стресс-Тест и Авто-Ребалансировщик Портфеля</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>T-Invest Aegis MCP — 3D Стресс-Тест и Авто-Ребалансировщик</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     :root {
       --bg: #090b10;
-      --panel: rgba(18, 22, 31, 0.92);
-      --border: rgba(255, 221, 45, 0.28);
+      --panel: rgba(18, 22, 31, 0.94);
+      --border: rgba(255, 221, 45, 0.26);
       --t-yellow: #ffdd2d;
       --t-yellow-hover: #fcc521;
       --accent: #38bdf8;
@@ -19,168 +19,491 @@
       --text: #f8fafc;
       --muted: #94a3b8;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 
-    /* Верхняя панель в стиле Т-Инвестиций */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      width: 100%;
+      min-height: 100%;
+      overflow-x: hidden;
+    }
+
+    /* На десктопе — фиксированный терминал во весь экран */
+    @media (min-width: 1025px) {
+      body {
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+    }
+
+    /* =====================================================
+       ШАПКА ТЕРМИНАЛА
+       ===================================================== */
     header {
-      min-height: 64px;
-      background: rgba(9, 11, 16, 0.96);
+      background: rgba(9, 11, 16, 0.97);
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 20px;
-      z-index: 20;
-      backdrop-filter: blur(12px);
+      padding: 10px 18px;
       gap: 12px;
-      flex-wrap: wrap;
+      z-index: 30;
+      backdrop-filter: blur(12px);
     }
-    .brand { display: flex; align-items: center; gap: 12px; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
     .brand-logo {
-      width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
-      background: var(--t-yellow); color: #000;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: 22px; box-shadow: 0 0 18px rgba(255, 221, 45, 0.45);
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      flex-shrink: 0;
+      background: var(--t-yellow);
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 20px;
+      box-shadow: 0 0 15px rgba(255, 221, 45, 0.4);
     }
-    .brand-title { font-size: 17px; font-weight: 800; letter-spacing: 0.4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .mcp-pill {
-      font-size: 10px; background: rgba(255, 221, 45, 0.16); color: var(--t-yellow);
-      border: 1px solid var(--t-yellow); padding: 2px 7px; border-radius: 5px; font-weight: 800; white-space: nowrap;
+    .brand-text {
+      min-width: 0;
     }
-    .brand-sub { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
-
-    .b2b-bar {
-      display: flex; align-items: center; gap: 16px;
-      background: rgba(255, 221, 45, 0.06);
-      border: 1px solid rgba(255, 221, 45, 0.35);
-      padding: 5px 14px; border-radius: 10px;
-    }
-    .b2b-tag { font-size: 10px; font-weight: 800; color: var(--t-yellow); text-transform: uppercase; white-space: nowrap; }
-    .b2b-metric { display: flex; flex-direction: column; }
-    .b2b-metric span:first-child { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
-    .b2b-metric span:last-child { font-size: 13px; font-weight: 800; color: #fff; white-space: nowrap; }
-
-    .status-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .token-input {
-      width: 155px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.18);
-      color: var(--t-yellow); padding: 6px 10px; border-radius: 8px; font-size: 11px;
-    }
-    .token-input::placeholder { color: var(--muted); }
-    .moex-badge {
-      display: flex; align-items: center; gap: 7px;
-      font-size: 11px; background: rgba(255,255,255,0.05);
-      padding: 6px 11px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
       white-space: nowrap;
     }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; flex-shrink: 0; }
+    .mcp-pill {
+      font-size: 10px;
+      background: rgba(255, 221, 45, 0.16);
+      color: var(--t-yellow);
+      border: 1px solid var(--t-yellow);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-weight: 800;
+    }
+    .brand-sub {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* B2B панель метрик брокера */
+    .b2b-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(255, 221, 45, 0.06);
+      border: 1px solid rgba(255, 221, 45, 0.32);
+      padding: 6px 14px;
+      border-radius: 10px;
+    }
+    .b2b-tag {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--t-yellow);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .b2b-metric {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .b2b-metric span:first-child {
+      font-size: 9.5px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .b2b-metric span:last-child {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .status-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .token-input {
+      width: 145px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: var(--t-yellow);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+    }
+    .moex-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      background: rgba(255,255,255,0.05);
+      padding: 6px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      white-space: nowrap;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+    }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     .btn-mode {
-      background: rgba(255, 221, 45, 0.14); color: var(--t-yellow);
-      border: 1px solid var(--t-yellow); padding: 6px 11px; border-radius: 8px;
-      font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap;
+      background: rgba(255, 221, 45, 0.14);
+      color: var(--t-yellow);
+      border: 1px solid var(--t-yellow);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
     }
     .btn-mode:hover { background: var(--t-yellow); color: #000; }
 
-    /* Основная сетка (Десктоп) */
-    main { flex: 1; display: grid; grid-template-columns: 1fr 480px; position: relative; overflow: hidden; }
+    /* =====================================================
+       ОСНОВНОЙ КОНТЕЙНЕР (ДЕСКТОП)
+       ===================================================== */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 460px;
+      position: relative;
+      overflow: hidden;
+    }
 
-    #viewport { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; }
-    #canvasWrap { position: relative; width: 100%; height: 100%; flex: 1; min-height: 280px; }
-    #canvas3d { width: 100%; height: 100%; display: block; }
+    #viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
 
+    /* Карточки счета и P&L */
     .hud-top {
-      position: absolute; top: 14px; left: 14px; right: 14px;
-      display: flex; gap: 12px; pointer-events: none; z-index: 3; flex-wrap: wrap;
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 5;
+      display: flex;
+      gap: 12px;
+      pointer-events: none;
     }
     .hud-card {
-      background: var(--panel); border: 1px solid var(--border);
-      padding: 10px 16px; border-radius: 12px; backdrop-filter: blur(10px);
-      min-width: 195px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      min-width: 210px;
     }
-    .hud-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
-    .hud-val { font-size: 21px; font-weight: 800; margin-top: 3px; }
-    .hud-sub { font-size: 11px; margin-top: 2px; }
+    .hud-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .hud-val {
+      font-size: 20px;
+      font-weight: 800;
+      margin-top: 3px;
+      white-space: nowrap;
+    }
+    .hud-sub {
+      font-size: 11px;
+      margin-top: 3px;
+      line-height: 1.3;
+    }
 
+    /* Холст 3D-сцены */
+    #canvasWrap {
+      position: relative;
+      width: 100%;
+      flex: 1;
+      min-height: 260px;
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+    #canvas3d {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+    .touch-hint {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.45);
+      background: rgba(0,0,0,0.45);
+      padding: 3px 8px;
+      border-radius: 10px;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    /* Нижний блок управления под 3D на десктопе */
+    .bottom-controls-stack {
+      position: relative;
+      z-index: 5;
+      padding: 0 14px 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: linear-gradient(180deg, rgba(9,11,16,0) 0%, rgba(9,11,16,0.95) 20%);
+    }
+
+    /* Лента карточек 7 башен */
     .tower-labels {
-      position: absolute; bottom: 176px; left: 12px; right: 12px;
-      display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; pointer-events: none; z-index: 3;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
     }
     .t-label {
-      background: rgba(9, 11, 16, 0.90); border: 1px solid rgba(255,255,255,0.15);
-      padding: 5px 6px; border-radius: 8px; text-align: center;
-      transition: transform 0.2s, border-color 0.2s;
+      background: rgba(12, 16, 24, 0.92);
+      border: 1px solid rgba(255,255,255,0.14);
+      padding: 6px 6px;
+      border-radius: 8px;
+      text-align: center;
+      min-width: 0;
     }
-    .t-ticker { font-weight: 800; font-size: 11.5px; color: var(--t-yellow); }
-    .t-role { font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted); }
-    .t-price { font-size: 10.5px; color: #fff; margin: 1px 0; }
-    .t-weight { font-size: 10px; color: var(--muted); }
+    .t-ticker {
+      font-weight: 800;
+      font-size: 11.5px;
+      color: var(--t-yellow);
+      white-space: nowrap;
+    }
+    .t-role {
+      font-size: 9px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .t-price {
+      font-size: 10.5px;
+      color: #fff;
+      font-weight: 600;
+      margin: 2px 0;
+      white-space: nowrap;
+    }
+    .t-weight {
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
 
+    /* Док ползунков макро-сценария */
     .shock-dock {
-      position: absolute; bottom: 12px; left: 14px; right: 14px;
-      background: var(--panel); border: 1px solid var(--border);
-      padding: 11px 15px; border-radius: 14px; backdrop-filter: blur(14px);
-      display: flex; flex-direction: column; gap: 9px; z-index: 4;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
     .dock-header {
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
-    .shock-title { font-size: 11px; font-weight: 800; color: var(--t-yellow); text-transform: uppercase; letter-spacing: 0.5px; }
-    .preset-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .shock-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--t-yellow);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .preset-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
     .btn-preset {
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
-      color: #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 11px;
-      cursor: pointer; transition: 0.15s; white-space: nowrap;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: #e2e8f0;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
     }
-    .btn-preset:hover { border-color: var(--t-yellow); color: #fff; background: rgba(255, 221, 45, 0.15); }
+    .btn-preset:hover { border-color: var(--t-yellow); color: #fff; }
     .btn-preset.danger:hover { border-color: var(--red); background: rgba(239, 68, 68, 0.2); }
 
     .sliders-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
     }
     .param-box {
-      background: rgba(5, 8, 17, 0.78); border: 1px solid rgba(255,255,255,0.08);
-      padding: 7px 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 5px;
+      background: rgba(5, 8, 17, 0.82);
+      border: 1px solid rgba(255,255,255,0.09);
+      padding: 8px 10px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
     }
-    .param-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; gap: 4px; }
-    .param-name { color: var(--muted); font-weight: 600; }
-    .param-input-wrap { display: flex; align-items: center; gap: 2px; }
+    .param-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .param-name {
+      font-size: 11px;
+      color: #cbd5e1;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .param-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
     .param-num {
-      width: 54px; background: rgba(255, 221, 45, 0.12); border: 1px solid rgba(255, 221, 45, 0.45);
-      color: #fff; font-weight: 800; font-size: 12px; padding: 3px 5px; border-radius: 5px; text-align: right;
+      width: 54px;
+      background: rgba(255, 221, 45, 0.12);
+      border: 1px solid rgba(255, 221, 45, 0.45);
+      color: #fff;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 3px 5px;
+      border-radius: 5px;
+      text-align: right;
     }
-    .param-unit { font-size: 11px; color: var(--t-yellow); font-weight: 700; }
-    input[type="range"] { width: 100%; accent-color: var(--t-yellow); cursor: pointer; height: 6px; }
-    .param-delta { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+    .param-unit {
+      font-size: 11px;
+      color: var(--t-yellow);
+      font-weight: 700;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--t-yellow);
+      cursor: pointer;
+      height: 6px;
+    }
+    .param-delta {
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+    }
 
+    /* Таблица VaR */
     #proTableOverlay {
-      position: absolute; inset: 82px 14px 175px 14px;
-      background: rgba(9, 11, 16, 0.97); border: 1px solid var(--border);
-      border-radius: 14px; padding: 16px; display: none; flex-direction: column;
-      backdrop-filter: blur(16px); z-index: 15; overflow: auto;
+      position: fixed;
+      inset: 74px 16px 16px 16px;
+      background: rgba(9, 11, 16, 0.98);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: none;
+      flex-direction: column;
+      z-index: 50;
+      overflow: auto;
     }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; min-width: 540px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; min-width: 560px; }
     th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
     th { color: var(--muted); font-size: 10px; text-transform: uppercase; }
 
+    /* =====================================================
+       ПРАВАЯ ПАНЕЛЬ AI-АГЕНТА
+       ===================================================== */
     aside {
       background: rgba(13, 16, 24, 0.98);
       border-left: 1px solid var(--border);
-      display: flex; flex-direction: column; height: 100%; overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
     }
-    .aside-section { padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .aside-section {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
     .autopilot-box {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
       background: linear-gradient(90deg, rgba(255, 221, 45, 0.10), rgba(16, 185, 129, 0.12));
       border: 1px solid rgba(255, 221, 45, 0.35);
-      padding: 10px 14px; border-radius: 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
     }
-    .ap-info h4 { font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px; }
-    .ap-info p { font-size: 10.5px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .ap-info h4 { font-size: 13px; color: #fff; }
+    .ap-info p {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
     .ap-threshold-input {
-      width: 48px; background: rgba(0,0,0,0.5); border: 1px solid var(--t-yellow);
-      color: var(--t-yellow); font-weight: 800; font-size: 11px; border-radius: 4px; padding: 2px 4px; text-align: center;
+      width: 48px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--t-yellow);
+      color: var(--t-yellow);
+      font-weight: 800;
+      font-size: 11px;
+      border-radius: 4px;
+      padding: 2px 4px;
+      text-align: center;
     }
 
     .switch { position: relative; display: inline-block; width: 46px; height: 24px; flex-shrink: 0; }
@@ -196,99 +519,161 @@
     input:checked + .slider { background-color: var(--green); box-shadow: 0 0 12px var(--green); }
     input:checked + .slider:before { transform: translateX(22px); }
 
-    .ai-box { flex: 1; display: flex; flex-direction: column; padding: 12px 18px; overflow-y: auto; gap: 9px; }
-    .ai-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .ai-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 16px;
+      overflow-y: auto;
+      gap: 10px;
+    }
+    .ai-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
     .ai-title { font-size: 11.5px; font-weight: 800; text-transform: uppercase; color: var(--t-yellow); }
-    .ai-badge { font-size: 10px; background: rgba(255, 221, 45, 0.15); color: var(--t-yellow); padding: 3px 8px; border-radius: 6px; font-weight: 700; white-space: nowrap; }
+    .ai-badge {
+      font-size: 10px;
+      background: rgba(255, 221, 45, 0.15);
+      color: var(--t-yellow);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
 
     .ai-diagnosis {
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
-      padding: 9px 11px; border-radius: 10px; font-size: 12px; line-height: 1.42; color: #e2e8f0;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #e2e8f0;
     }
 
     .hedge-split-bar {
-      background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.1);
-      padding: 8px 10px; border-radius: 8px; display: none; flex-direction: column; gap: 5px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 10px;
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 5px;
     }
-    .split-title { font-size: 10px; color: var(--muted); text-transform: uppercase; display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+    .split-title {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
     .split-track { height: 7px; border-radius: 4px; overflow: hidden; display: flex; background: #1e293b; }
-    .split-legend { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; flex-wrap: wrap; gap: 6px; }
+    .split-legend { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; gap: 6px; flex-wrap: wrap; }
 
     .orders-list { display: flex; flex-direction: column; gap: 6px; }
     .order-card {
-      background: rgba(18, 24, 38, 0.95); border-left: 4px solid var(--t-yellow);
-      padding: 8px 10px; border-radius: 6px; font-size: 11px;
-      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      background: rgba(18, 24, 38, 0.95);
+      border-left: 4px solid var(--t-yellow);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
     }
     .order-card.SELL { border-left-color: var(--red); }
     .order-card.BUY { border-left-color: var(--green); }
-    .order-act { font-weight: 800; font-size: 9.5px; padding: 2px 5px; border-radius: 4px; margin-right: 5px; }
+    .order-act { font-weight: 800; font-size: 9.5px; padding: 2px 5px; border-radius: 4px; margin-right: 4px; }
     .order-act.SELL { background: rgba(239,68,68,0.2); color: #fca5a5; }
     .order-act.BUY { background: rgba(16,185,129,0.2); color: #6ee7b7; }
 
     .btn-execute {
-      width: 100%; padding: 13px; border: none; border-radius: 10px;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
       background: var(--t-yellow);
-      color: #000; font-weight: 900; font-size: 12.5px; cursor: pointer;
-      box-shadow: 0 4px 20px rgba(255, 221, 45, 0.35); transition: 0.2s;
-      text-transform: uppercase; letter-spacing: 0.5px;
+      color: #000;
+      font-weight: 900;
+      font-size: 12.5px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(255, 221, 45, 0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
     }
-    .btn-execute:hover:not(:disabled) { background: var(--t-yellow-hover); transform: translateY(-1px); box-shadow: 0 6px 25px rgba(255, 221, 45, 0.55); }
-    .btn-execute:disabled { background: #1e293b; color: var(--muted); box-shadow: none; cursor: not-allowed; }
+    .btn-execute:disabled {
+      background: #1e293b;
+      color: var(--muted);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
 
     .log-section {
-      height: 155px; border-top: 1px solid rgba(255,255,255,0.1);
-      padding: 9px 18px; display: flex; flex-direction: column; background: #05070b;
+      height: 150px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding: 9px 16px;
+      display: flex;
+      flex-direction: column;
+      background: #05070b;
     }
     .log-title { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; display: flex; justify-content: space-between; }
-    .log-stream { flex: 1; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 10.5px; display: flex; flex-direction: column; gap: 4px; }
+    .log-stream { flex: 1; overflow-y: auto; font-family: monospace; font-size: 10.5px; display: flex; flex-direction: column; gap: 4px; }
     .log-item { color: #94a3b8; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 3px; word-break: break-word; }
     .log-item span.ok { color: var(--green); font-weight: bold; }
     .log-item span.mcp { color: var(--t-yellow); font-weight: bold; }
 
     #sdkModal {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+      position: fixed; inset: 0; background: rgba(0,0,0,0.82);
       display: none; align-items: center; justify-content: center; z-index: 100;
       backdrop-filter: blur(6px); padding: 14px;
     }
     .modal-card {
-      background: #12161f; border: 1px solid var(--t-yellow); width: 100%; max-width: 620px;
-      border-radius: 14px; padding: 20px; max-height: 90vh; overflow-y: auto;
+      background: #12161f; border: 1px solid var(--t-yellow); width: 100%; max-width: 600px;
+      border-radius: 14px; padding: 18px; max-height: 90vh; overflow-y: auto;
     }
     pre {
       background: #06080d; padding: 12px; border-radius: 8px; color: var(--t-yellow);
       font-size: 11px; overflow-x: auto; margin: 12px 0; border: 1px solid rgba(255,255,255,0.1);
     }
 
-    /* ==========================================================================
-       АДАПТАЦИЯ ПОД ПЛАНШЕТЫ И СМАРТФОНЫ (< 1024px и < 640px)
-       ========================================================================== */
+    /* =====================================================
+       МОБИЛЬНАЯ И ПЛАНШЕТНАЯ ОПТИМИЗАЦИЯ (БЕЗ ОБРЕЗКИ И НАЛОЖЕНИЙ)
+       ===================================================== */
     @media (max-width: 1024px) {
-      body {
-        height: auto;
-        min-height: 100vh;
-        overflow-y: auto;
-        overflow-x: hidden;
-      }
       header {
-        padding: 10px 14px;
-        position: sticky;
-        top: 0;
+        padding: 8px 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .token-input {
+        display: none;
       }
       .b2b-bar {
         order: 3;
         width: 100%;
-        justify-content: space-between;
-        overflow-x: auto;
-        padding: 6px 12px;
-        gap: 12px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        padding: 7px 10px;
       }
-      .status-controls {
-        margin-left: auto;
+      .b2b-tag {
+        display: none;
       }
-      .token-input {
-        width: 125px;
+      .b2b-metric span:first-child {
+        font-size: 9px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
+      .b2b-metric span:last-child {
+        font-size: 12px;
+      }
+
       main {
         display: flex;
         flex-direction: column;
@@ -298,45 +683,80 @@
       #viewport {
         height: auto;
         overflow: visible;
+        display: flex;
+        flex-direction: column;
       }
-      #canvasWrap {
-        height: 360px;
-        min-height: 340px;
-      }
-      /* Карточки башен превращаются в удобную свайп-ленту под 3D-сценой */
-      .tower-labels {
+
+      /* 1. Карточки счета и P&L выносим НАД 3D-сценой, чтобы они не закрывали башни! */
+      .hud-top {
         position: relative;
-        bottom: auto; left: auto; right: auto;
+        top: auto;
+        left: auto;
+        width: 100%;
+        padding: 10px 12px 4px 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        pointer-events: auto;
+      }
+      .hud-card {
+        min-width: 0;
+        padding: 9px 11px;
+      }
+      .hud-label {
+        font-size: 9.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .hud-val {
+        font-size: 16px;
+      }
+      .hud-sub {
+        font-size: 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* 2. Чистое окно для 3D-графики без перекрывающих плашек */
+      #canvasWrap {
+        width: 100%;
+        height: 280px;
+        min-height: 280px;
+        flex: none;
+        margin: 4px 0;
+        border-top: 1px solid rgba(255, 221, 45, 0.15);
+        border-bottom: 1px solid rgba(255, 221, 45, 0.15);
+        background: radial-gradient(circle at 50% 60%, #131926 0%, #090b10 80%);
+      }
+
+      /* 3. Свайп-карусель карточек активов и ползунки идут строго под 3D */
+      .bottom-controls-stack {
+        padding: 8px 12px 14px 12px;
+        background: none;
+        gap: 12px;
+      }
+      .tower-labels {
         display: flex;
         overflow-x: auto;
         gap: 8px;
-        padding: 10px 12px;
-        background: #07090e;
-        border-top: 1px solid rgba(255,255,255,0.06);
-        border-bottom: 1px solid rgba(255,255,255,0.06);
-        pointer-events: auto;
+        padding-bottom: 6px;
         scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
       }
       .t-label {
-        min-width: 112px;
+        min-width: 120px;
         flex-shrink: 0;
         scroll-snap-align: start;
+        padding: 7px 8px;
       }
-      /* Конструктор сценариев встает в поток страницы без перекрытия 3D */
-      .shock-dock {
-        position: relative;
-        bottom: auto; left: auto; right: auto;
-        margin: 10px 12px;
-        padding: 12px;
-      }
+
       .sliders-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
       }
-      #proTableOverlay {
-        position: fixed;
-        inset: 70px 10px 10px 10px;
-      }
+
       aside {
         border-left: none;
         border-top: 1px solid var(--border);
@@ -351,87 +771,65 @@
       }
     }
 
-    @media (max-width: 640px) {
-      header {
-        padding: 8px 10px;
-        gap: 8px;
-      }
-      .brand-logo {
-        width: 32px; height: 32px; font-size: 18px;
-      }
-      .brand-title {
-        font-size: 14px; gap: 5px;
-      }
+    /* Узкие экраны смартфонов (< 560px) — ползунки в 1 колонку, чтобы буквы никогда не накладывались */
+    @media (max-width: 560px) {
       .brand-sub {
-        font-size: 9px;
-      }
-      .token-input {
-        display: none; /* На узких экранах скрываем поле токена, чтобы не загромождать шапку */
-      }
-      .moex-badge span {
-        font-size: 10px;
-      }
-      .btn-mode {
-        padding: 5px 8px;
-        font-size: 10px;
-      }
-      .b2b-tag {
         display: none;
       }
-      .b2b-metric span:first-child {
-        font-size: 9px;
+      .moex-badge span {
+        display: none; /* Оставляем только пульсирующий зеленый индикатор */
       }
-      .b2b-metric span:last-child {
-        font-size: 12px;
-      }
-      #canvasWrap {
-        height: 300px;
-        min-height: 290px;
+      .moex-badge {
+        padding: 6px;
       }
       .hud-top {
-        top: 8px; left: 8px; right: 8px;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr; /* По одной широкой карточке в ряд — никакой тесноты */
         gap: 6px;
       }
       .hud-card {
-        min-width: 0;
-        padding: 8px 10px;
-      }
-      .hud-label {
-        font-size: 9px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
       }
       .hud-val {
-        font-size: 15px;
+        font-size: 16px;
+        margin-top: 1px;
       }
-      .hud-sub {
-        font-size: 9.5px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      #canvasWrap {
+        height: 250px;
+        min-height: 250px;
       }
       .preset-group {
         width: 100%;
         overflow-x: auto;
         flex-wrap: nowrap;
         padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
       }
       .sliders-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr; /* 1 колонка для ползунков на смартфонах — 100% читаемость */
         gap: 8px;
       }
       .param-box {
-        padding: 8px;
+        padding: 9px 12px;
       }
       .param-name {
-        font-size: 10px;
+        font-size: 12px;
       }
       .param-num {
-        width: 48px;
-        font-size: 12px;
+        width: 62px;
+        font-size: 13px;
+        padding: 4px 6px;
       }
       input[type="range"] {
         height: 8px;
+        margin: 4px 0;
+      }
+      .order-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
       }
       .btn-execute {
         padding: 15px;
@@ -445,7 +843,7 @@
 <header>
   <div class="brand">
     <div class="brand-logo">Т</div>
-    <div>
+    <div class="brand-text">
       <div class="brand-title">
         T-INVEST AEGIS
         <span class="mcp-pill">MCP v2</span>
@@ -458,46 +856,132 @@
   <div class="b2b-bar" title="Двойная монетизация для экосистемы Т-Инвестиций">
     <div class="b2b-tag">Эффект Т-Инвестиции</div>
     <div class="b2b-metric">
-      <span>Торговый оборот</span>
+      <span>Оборот (API)</span>
       <span id="b2bTurnover">0 ₽</span>
     </div>
     <div class="b2b-metric">
-      <span>Комиссия + Т-Капитал</span>
+      <span>Комиссия + УК</span>
       <span id="b2bCommission" style="color: var(--green);">+0 ₽</span>
     </div>
     <div class="b2b-metric">
-      <span>Прирост клиенту (Альфа)</span>
+      <span>Выгода клиенту</span>
       <span id="b2bSavedRisk" style="color: var(--t-yellow);">+0 ₽</span>
     </div>
   </div>
 
   <div class="status-controls">
-    <input type="password" id="tinvestToken" class="token-input" placeholder="T-Invest Token (t.xxx)" onchange="onTokenChange(this.value)" title="Опционально: введите токен T-Invest API">
-    <div class="moex-badge">
+    <input type="password" id="tinvestToken" class="token-input" placeholder="T-Invest Token (t.xxx)" onchange="onTokenChange(this.value)">
+    <div class="moex-badge" title="Статус соединения с T-Invest MCP">
       <div class="dot" id="moexDot"></div>
       <span id="moexStatusText">MCP: Live</span>
     </div>
-    <button class="btn-mode" onclick="toggleProMode()">FIGI / 3D</button>
+    <button class="btn-mode" onclick="toggleProMode()">FIGI / VaR</button>
     <button class="btn-mode" onclick="toggleSdkModal()">MCP</button>
   </div>
 </header>
 
 <main>
   <section id="viewport">
-    <!-- Обертка 3D-холста для точного расчета пропорций на смартфонах -->
+    <!-- Карточки счета и P&L (на мобильных стоят НАД 3D-холстом и ничего не перекрывают) -->
+    <div class="hud-top">
+      <div class="hud-card">
+        <div>
+          <div class="hud-label">Счет Т-Инвестиции</div>
+          <div class="hud-sub" id="hudScenarioName" style="color: var(--muted);">Базовый консенсус</div>
+        </div>
+        <div class="hud-val" id="hudTotalValue">1 000 000 ₽</div>
+      </div>
+      <div class="hud-card">
+        <div>
+          <div class="hud-label">Чистый P&L к старту</div>
+          <div class="hud-sub" id="hudShieldStatus">Защита: Т-Капитал 12%</div>
+        </div>
+        <div class="hud-val" id="hudPnL" style="color: var(--green);">0 ₽ (0.0%)</div>
+      </div>
+    </div>
+
+    <!-- Чистый контейнер 3D-сцены -->
     <div id="canvasWrap">
       <canvas id="canvas3d"></canvas>
+      <div class="touch-hint">↔ Вращайте сцену пальцем / мышью</div>
+    </div>
 
-      <div class="hud-top">
-        <div class="hud-card">
-          <div class="hud-label">Счет Т-Инвестиции</div>
-          <div class="hud-val" id="hudTotalValue">1 000 000 ₽</div>
-          <div class="hud-sub" id="hudScenarioName" style="color: var(--muted);">Базовый консенсус рынка</div>
+    <!-- Стек карточек бумаг и ползунков сценария -->
+    <div class="bottom-controls-stack">
+      <div class="tower-labels" id="towerLabels"></div>
+
+      <div class="shock-dock">
+        <div class="dock-header">
+          <div class="shock-title">🎛️ Конструктор макро-сценария перед ЦБ (MCP):</div>
+          <div class="preset-group">
+            <button class="btn-preset danger" onclick="applyPreset(25, 75, 96, 15, 'Жесткий ЦБ (Ставка 25%)')">🔥 ЦБ 25%</button>
+            <button class="btn-preset danger" onclick="applyPreset(21, 42, 112, 30, 'Brent $42 + Девальвация')">🛢️ Brent $42</button>
+            <button class="btn-preset danger" onclick="applyPreset(24, 52, 118, 80, 'Идеальный шторм')">⚡ Шторм</button>
+            <button class="btn-preset" onclick="applyPreset(15, 85, 90, 0, 'Снижение ставки ЦБ 15%')">🌱 ЦБ 15%</button>
+            <button class="btn-preset" onclick="resetPortfolio()">↺ Сброс</button>
+          </div>
         </div>
-        <div class="hud-card">
-          <div class="hud-label">Чистый P&L к старту</div>
-          <div class="hud-val" id="hudPnL" style="color: var(--green);">0 ₽ (0.0%)</div>
-          <div class="hud-sub" id="hudShieldStatus">Защита: Т-Капитал 12%</div>
+
+        <div class="sliders-grid">
+          <div class="param-box">
+            <div class="param-top">
+              <span class="param-name">Ключевая ставка ЦБ</span>
+              <div class="param-input-wrap">
+                <input type="number" id="numRate" class="param-num" min="5" max="35" step="0.5" value="21" oninput="syncParam('rate', this.value)">
+                <span class="param-unit">%</span>
+              </div>
+            </div>
+            <input type="range" id="rngRate" min="5" max="35" step="0.5" value="21" oninput="syncParam('rate', this.value)">
+            <div class="param-delta">
+              <span>База: 21%</span>
+              <span id="deltaRate">Δ 0.0%</span>
+            </div>
+          </div>
+
+          <div class="param-box">
+            <div class="param-top">
+              <span class="param-name">Нефть марки Brent</span>
+              <div class="param-input-wrap">
+                <input type="number" id="numOil" class="param-num" min="25" max="130" step="1" value="75" oninput="syncParam('oil', this.value)">
+                <span class="param-unit">$</span>
+              </div>
+            </div>
+            <input type="range" id="rngOil" min="25" max="130" step="1" value="75" oninput="syncParam('oil', this.value)">
+            <div class="param-delta">
+              <span>База: $75</span>
+              <span id="deltaOil">Δ 0%</span>
+            </div>
+          </div>
+
+          <div class="param-box">
+            <div class="param-top">
+              <span class="param-name">Курс USD / RUB</span>
+              <div class="param-input-wrap">
+                <input type="number" id="numUsd" class="param-num" min="60" max="150" step="1" value="96" oninput="syncParam('usd', this.value)">
+                <span class="param-unit">₽</span>
+              </div>
+            </div>
+            <input type="range" id="rngUsd" min="60" max="150" step="1" value="96" oninput="syncParam('usd', this.value)">
+            <div class="param-delta">
+              <span>База: 96 ₽</span>
+              <span id="deltaUsd">Δ 0%</span>
+            </div>
+          </div>
+
+          <div class="param-box">
+            <div class="param-top">
+              <span class="param-name">Санкционный стресс</span>
+              <div class="param-input-wrap">
+                <input type="number" id="numStress" class="param-num" min="0" max="100" step="5" value="0" oninput="syncParam('stress', this.value)">
+                <span class="param-unit">пт</span>
+              </div>
+            </div>
+            <input type="range" id="rngStress" min="0" max="100" step="5" value="0" oninput="syncParam('stress', this.value)">
+            <div class="param-delta">
+              <span>Норма: 0 пт</span>
+              <span id="deltaStress">Спокойно</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -524,88 +1008,9 @@
         <tbody id="proTableBody"></tbody>
       </table>
     </div>
-
-    <!-- Карточки 7 башен (на смартфонах свайпаются горизонтально) -->
-    <div class="tower-labels" id="towerLabels"></div>
-
-    <!-- ПАРАМЕТРИЧЕСКИЙ КОНСТРУКТОР МАКРО-СЦЕНАРИЯ -->
-    <div class="shock-dock">
-      <div class="dock-header">
-        <div class="shock-title">🎛️ Симулятор сценариев перед ЦБ (MCP: simulate_macro_stress):</div>
-        <div class="preset-group">
-          <button class="btn-preset danger" onclick="applyPreset(25, 75, 96, 15, 'Жесткий сигнал ЦБ (Ставка 25%)')">🔥 ЦБ 25%</button>
-          <button class="btn-preset danger" onclick="applyPreset(21, 42, 112, 30, 'Обвал Brent $42 + Девальвация')">🛢️ Brent $42</button>
-          <button class="btn-preset danger" onclick="applyPreset(24, 52, 118, 80, 'Идеальный шторм')">⚡ Шторм</button>
-          <button class="btn-preset" onclick="applyPreset(15, 85, 90, 0, 'Снижение ставки ЦБ до 15%')">🌱 ЦБ 15%</button>
-          <button class="btn-preset" onclick="resetPortfolio()">↺ Сброс</button>
-        </div>
-      </div>
-
-      <div class="sliders-grid">
-        <div class="param-box">
-          <div class="param-top">
-            <span class="param-name">Ставка ЦБ</span>
-            <div class="param-input-wrap">
-              <input type="number" id="numRate" class="param-num" min="5" max="35" step="0.5" value="21" oninput="syncParam('rate', this.value)">
-              <span class="param-unit">%</span>
-            </div>
-          </div>
-          <input type="range" id="rngRate" min="5" max="35" step="0.5" value="21" oninput="syncParam('rate', this.value)">
-          <div class="param-delta">
-            <span>База: 21%</span>
-            <span id="deltaRate">Δ 0.0%</span>
-          </div>
-        </div>
-
-        <div class="param-box">
-          <div class="param-top">
-            <span class="param-name">Нефть Brent</span>
-            <div class="param-input-wrap">
-              <input type="number" id="numOil" class="param-num" min="25" max="130" step="1" value="75" oninput="syncParam('oil', this.value)">
-              <span class="param-unit">$</span>
-            </div>
-          </div>
-          <input type="range" id="rngOil" min="25" max="130" step="1" value="75" oninput="syncParam('oil', this.value)">
-          <div class="param-delta">
-            <span>База: $75</span>
-            <span id="deltaOil">Δ 0%</span>
-          </div>
-        </div>
-
-        <div class="param-box">
-          <div class="param-top">
-            <span class="param-name">Курс USD/RUB</span>
-            <div class="param-input-wrap">
-              <input type="number" id="numUsd" class="param-num" min="60" max="150" step="1" value="96" oninput="syncParam('usd', this.value)">
-              <span class="param-unit">₽</span>
-            </div>
-          </div>
-          <input type="range" id="rngUsd" min="60" max="150" step="1" value="96" oninput="syncParam('usd', this.value)">
-          <div class="param-delta">
-            <span>База: 96 ₽</span>
-            <span id="deltaUsd">Δ 0%</span>
-          </div>
-        </div>
-
-        <div class="param-box">
-          <div class="param-top">
-            <span class="param-name">Гео-стресс</span>
-            <div class="param-input-wrap">
-              <input type="number" id="numStress" class="param-num" min="0" max="100" step="5" value="0" oninput="syncParam('stress', this.value)">
-              <span class="param-unit">пт</span>
-            </div>
-          </div>
-          <input type="range" id="rngStress" min="0" max="100" step="5" value="0" oninput="syncParam('stress', this.value)">
-          <div class="param-delta">
-            <span>Норма: 0</span>
-            <span id="deltaStress">Спокойно</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </section>
 
-  <!-- Правая часть (на мобильных идет сразу под ползунками): T-Invest MCP Агент и Ордера -->
+  <!-- Правая панель: Автономный агент и Ордера -->
   <aside>
     <div class="aside-section">
       <div class="autopilot-box">
@@ -630,7 +1035,7 @@
       </div>
 
       <div class="ai-diagnosis" id="aiDiagnosisText">
-        Задайте любые макропараметры. AI-агент через <b>T-Invest MCP</b> рассчитывает чувствительность бумаг по <code>FIGI</code> и формирует пакет сделок в защитные фонды <b>Т-Капитал (TMON + TOFZ + TGLD)</b>, обеспечивая доходность при любой ситуации на рынке.
+        Задайте любые макропараметры. AI-агент через <b>T-Invest MCP</b> рассчитывает чувствительность бумаг по <code>FIGI</code> и формирует пакет сделок в защитные фонды <b>Т-Капитал (TMON + TOFZ + TGLD)</b>, выводя портфель в чистый плюс.
       </div>
 
       <div class="hedge-split-bar" id="hedgeSplitBox">
@@ -639,9 +1044,9 @@
           <span id="hedgeRegimeLabel" style="color:var(--t-yellow); font-weight:700;">Всепогодный баланс</span>
         </div>
         <div class="split-track">
-          <div id="barLqdt" style="width:50%; background:#38bdf8;" title="TMON (Денежный рынок Т-Капитал)"></div>
-          <div id="barOfz" style="width:30%; background:#14b8a6;" title="SU26238 / TOFZ (ОФЗ)"></div>
-          <div id="barGold" style="width:20%; background:#ffdd2d;" title="TGLD (Золото Т-Капитал)"></div>
+          <div id="barLqdt" style="width:50%; background:#38bdf8;"></div>
+          <div id="barOfz" style="width:30%; background:#14b8a6;"></div>
+          <div id="barGold" style="width:20%; background:#ffdd2d;"></div>
         </div>
         <div class="split-legend">
           <span style="color:#38bdf8;" id="legLqdt">TMON: 50%</span>
@@ -654,7 +1059,7 @@
         Пакет поручений T-Invest API (PostOrder Batch):
       </div>
       <div class="orders-list" id="aiOrdersList">
-        <div style="font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0;">
+        <div style="font-size: 12px; color: var(--muted); text-align: center; padding: 14px 0;">
           Измените любой макропараметр для генерации MCP-ордеров.
         </div>
       </div>
@@ -681,7 +1086,7 @@
   <div class="modal-card" onclick="event.stopPropagation()">
     <h3 style="color: var(--t-yellow); font-size: 16px;">Спецификация подключения T-Invest MCP Server</h3>
     <p style="font-size: 12px; color: var(--muted); margin-top: 6px;">
-      Сервис реализует стандарт <b>Model Context Protocol (MCP)</b> поверх официального <b>T-Invest REST/gRPC API v2</b> (<code>invest-public-api.tinkoff.ru</code>) и экспортирует 3 готовых тула:
+      Сервис реализует стандарт <b>Model Context Protocol (MCP)</b> поверх официального <b>T-Invest REST/gRPC API v2</b> (<code>invest-public-api.tinkoff.ru</code>):
     </p>
     <pre>{
   "mcpServers": {
@@ -705,16 +1110,16 @@
 
 <script>
 /**
- * 1. СПЕЦИФИКАЦИЯ ИНСТРУМЕНТОВ Т-ИНВЕСТИЦИЙ (С РЕАЛЬНЫМИ FIGI И БИРЖЕВЫМИ ФОНДАМИ Т-КАПИТАЛ)
+ * 1. СПЕЦИФИКАЦИЯ ИНСТРУМЕНТОВ Т-ИНВЕСТИЦИЙ
  */
 const ASSETS_META = {
-  T:       { figi: 'TCS00A107UL4', name: 'Т-Технологии',       role: 'Акции • Финтех',    isHedge: false, fallbackPrice: 2680.0, color: 0xffdd2d, posX: -7.8 },
-  SBER:    { figi: 'BBG004730N88', name: 'Сбербанк',           role: 'Акции • Банки',     isHedge: false, fallbackPrice: 300.5,  color: 0x22c55e, posX: -5.2 },
-  LKOH:    { figi: 'BBG004731032', name: 'ЛУКОЙЛ',             role: 'Акции • Нефть',     isHedge: false, fallbackPrice: 7150.0, color: 0xef4444, posX: -2.6 },
+  T:       { figi: 'TCS00A107UL4', name: 'Т-Технологии',       role: 'Акции • Финтех',    isHedge: false, fallbackPrice: 2680.0, color: 0xffdd2d, posX: -7.5 },
+  SBER:    { figi: 'BBG004730N88', name: 'Сбербанк',           role: 'Акции • Банки',     isHedge: false, fallbackPrice: 300.5,  color: 0x22c55e, posX: -5.0 },
+  LKOH:    { figi: 'BBG004731032', name: 'ЛУКОЙЛ',             role: 'Акции • Нефть',     isHedge: false, fallbackPrice: 7150.0, color: 0xef4444, posX: -2.5 },
   YDEX:    { figi: 'TCS00A107T19', name: 'Яндекс',             role: 'Акции • IT',        isHedge: false, fallbackPrice: 3950.0, color: 0xa855f7, posX:  0.0 },
-  TMON:    { figi: 'TCS70A106DL2', name: 'Т-Капитал Денежный', role: 'Хедж • Фонд TMON',  isHedge: true,  fallbackPrice: 145.8,  color: 0x38bdf8, posX:  2.6 },
-  SU26238: { figi: 'BBG011FHF1F7', name: 'ОФЗ 26238 (TOFZ)',   role: 'Хедж • Госбонды',   isHedge: true,  fallbackPrice: 515.0,  color: 0x14b8a6, posX:  5.2 },
-  TGLD:    { figi: 'BBG00QPYJ5X0', name: 'Т-Капитал Золото',   role: 'Хедж • Фонд TGLD',  isHedge: true,  fallbackPrice: 11.4,   color: 0xf59e0b, posX:  7.8 }
+  TMON:    { figi: 'TCS70A106DL2', name: 'Т-Капитал Денежный', role: 'Хедж • Фонд TMON',  isHedge: true,  fallbackPrice: 145.8,  color: 0x38bdf8, posX:  2.5 },
+  SU26238: { figi: 'BBG011FHF1F7', name: 'ОФЗ 26238 (TOFZ)',   role: 'Хедж • Госбонды',   isHedge: true,  fallbackPrice: 515.0,  color: 0x14b8a6, posX:  5.0 },
+  TGLD:    { figi: 'BBG00QPYJ5X0', name: 'Т-Капитал Золото',   role: 'Хедж • Фонд TGLD',  isHedge: true,  fallbackPrice: 11.4,   color: 0xf59e0b, posX:  7.5 }
 };
 
 const BASE_MACRO = { rate: 21.0, oil: 75.0, usd: 96.0, stress: 0.0 };
@@ -772,7 +1177,7 @@ function computeMultiFactorImpacts(macro, isShielded = false) {
 }
 
 /**
- * 3. АДАПТИВНАЯ СТРАТЕГИЯ ФОНДОВ Т-КАПИТАЛ (TMON + SU26238 + TGLD)
+ * 3. АДАПТИВНАЯ СТРАТЕГИЯ ФОНДОВ Т-КАПИТАЛ
  */
 function computeAdaptiveHedgeWeights(macro) {
   const dRate   = macro.rate - BASE_MACRO.rate;
@@ -783,7 +1188,7 @@ function computeAdaptiveHedgeWeights(macro) {
   if (dRate >= 2.0) {
     return {
       TMON: 0.65, SU26238: 0.10, TGLD: 0.25,
-      regime: 'Жесткое ДКП → Доминанта фонда TMON'
+      regime: 'Жесткое ДКП → Доминанта TMON'
     };
   }
   if (dUsdPct >= 0.08 || dOilPct <= -0.20 || stress >= 0.35) {
@@ -817,10 +1222,10 @@ const sfx = {
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(360, this.ctx.currentTime);
-      gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.025, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
       osc.connect(gain); gain.connect(this.ctx.destination);
-      osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+      osc.start(); osc.stop(this.ctx.currentTime + 0.04);
     } catch(e) {}
   },
   playShield() {
@@ -842,7 +1247,7 @@ const sfx = {
 };
 
 /**
- * 5. СИНХРОНИЗАЦИЯ КОТИРОВОК ЧЕРЕЗ T-INVEST MCP / БИРЖЕВОЙ ФИД
+ * 5. СИНХРОНИЗАЦИЯ КОТИРОВОК
  */
 async function fetchMarketQuotes() {
   Object.keys(ASSETS_META).forEach(t => {
@@ -897,7 +1302,7 @@ function onTokenChange(val) {
 }
 
 /**
- * 6. УПРАВЛЕНИЕ ПОЛЗУНКАМИ И ПРОИЗВОЛЬНЫМИ ПАРАМЕТРАМИ ПОЛЬЗОВАТЕЛЯ
+ * 6. УПРАВЛЕНИЕ ПОЛЗУНКАМИ И ПАРАМЕТРАМИ
  */
 let backendDebounce = null;
 
@@ -957,7 +1362,7 @@ function restoreInitialHoldings() {
 }
 
 /**
- * 7. ОЦЕНКА СЦЕНАРИЯ И ФОРМИРОВАНИЕ ПАКЕТА ПОРУЧЕНИЙ T-INVEST MCP
+ * 7. ОЦЕНКА СЦЕНАРИЯ И ФОРМИРОВАНИЕ ПАКЕТА ПОРУЧЕНИЙ
  */
 function evaluateCustomScenario(allowAutopilot = true) {
   state.impacts = computeMultiFactorImpacts(state.macro, state.isShielded);
@@ -1089,7 +1494,7 @@ function renderAiOrders(plan) {
   if (!plan.orders || plan.orders.length === 0) {
     document.getElementById('aiStateBadge').textContent = 'MCP Ready';
     splitBox.style.display = 'none';
-    container.innerHTML = `<div style="font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0;">Сдвиньте любой ползунок для расчета.</div>`;
+    container.innerHTML = `<div style="font-size: 12px; color: var(--muted); text-align: center; padding: 14px 0;">Сдвиньте любой ползунок для расчета.</div>`;
     document.getElementById('btnExecute').disabled = true;
     return;
   }
@@ -1114,7 +1519,7 @@ function renderAiOrders(plan) {
         </div>
         <div style="color: var(--muted); font-size: 10px; margin-top: 2px;">${o.reason}</div>
       </div>
-      <div style="font-weight: 700; white-space: nowrap; margin-left: 8px;">
+      <div style="font-weight: 800; white-space: nowrap; color: #fff;">
         ${Math.round(o.amountRub).toLocaleString('ru-RU')} ₽
       </div>
     </div>
@@ -1124,36 +1529,34 @@ function renderAiOrders(plan) {
 }
 
 /**
- * 8. THREE.JS 3D-СЦЕНА С АВТОМАТИЧЕСКОЙ АДАПТАЦИЕЙ КАМЕРЫ ПОД СМАРТФОНЫ
+ * 8. THREE.JS 3D-СЦЕНА С МАТЕМАТИЧЕСКИМ ВПИСЫВАНИЕМ ВСЕХ 7 БАШЕН НА ЛЮБОМ ЭКРАНЕ
  */
-let scene, camera, renderer, towers = {}, shieldDome, baseCamZ = 19.5, baseCamY = 8.2;
+let scene, camera, renderer, cityGroup, towers = {}, shieldDome;
+let userRotY = 0, isPointerDown = false, startPointerX = 0;
 
-function updateCameraForScreenSize() {
+function fitCameraToViewport() {
   const wrap = document.getElementById('canvasWrap');
   if (!wrap || !camera || !renderer) return;
-  const w = wrap.clientWidth || window.innerWidth;
-  const h = wrap.clientHeight || 320;
+  const w = Math.max(260, wrap.clientWidth);
+  const h = Math.max(200, wrap.clientHeight);
   const aspect = w / h;
 
   camera.aspect = aspect;
-  // Если экран узкий (смартфон в портретной ориентации) — увеличиваем угол обзора и отодвигаем камеру, чтобы все 7 башен влезали целиком
-  if (aspect < 1.0) {
-    camera.fov = 56;
-    baseCamZ = 25.5;
-    baseCamY = 9.5;
-  } else if (aspect < 1.4) {
-    camera.fov = 50;
-    baseCamZ = 22.0;
-    baseCamY = 8.8;
-  } else {
-    camera.fov = 45;
-    baseCamZ = 19.5;
-    baseCamY = 8.2;
-  }
-  camera.position.y = baseCamY;
-  camera.position.z = baseCamZ;
+  camera.fov = 46;
+
+  // Ширина всего ряда из 7 башен + купол составляет ~20 единиц.
+  // Рассчитываем дистанцию камеры так, чтобы ряд из 20 единиц всегда помещался по горизонтали и вертикали!
+  const vFovRad = (camera.fov * Math.PI) / 180;
+  const halfTan = Math.tan(vFovRad / 2);
+  const distForWidth = 11.2 / (halfTan * aspect);
+  const distForHeight = 6.2 / halfTan;
+  const dist = Math.max(17.5, distForWidth, distForHeight);
+
+  camera.position.set(0, Math.min(9.5, dist * 0.42), dist);
+  camera.lookAt(0, 2.2, 0);
   camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
+
+  renderer.setSize(w, h, false);
 }
 
 function initThreeScene() {
@@ -1161,44 +1564,63 @@ function initThreeScene() {
   const canvas = document.getElementById('canvas3d');
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x090b10, 0.028);
+  scene.fog = new THREE.FogExp2(0x090b10, 0.018);
 
-  camera = new THREE.PerspectiveCamera(45, wrap.clientWidth / wrap.clientHeight, 0.1, 100);
+  camera = new THREE.PerspectiveCamera(46, 1.5, 0.1, 150);
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
-  updateCameraForScreenSize();
+  cityGroup = new THREE.Group();
+  scene.add(cityGroup);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
   const dirLight = new THREE.DirectionalLight(0xffdd2d, 1.15);
-  dirLight.position.set(8, 16, 11);
+  dirLight.position.set(8, 18, 12);
   scene.add(dirLight);
 
-  const grid = new THREE.GridHelper(24, 24, 0xffdd2d, 0x1e293b);
-  scene.add(grid);
+  const grid = new THREE.GridHelper(22, 22, 0xffdd2d, 0x1e293b);
+  cityGroup.add(grid);
 
   Object.keys(ASSETS_META).forEach(ticker => {
     const meta = ASSETS_META[ticker];
-    const geo = new THREE.BoxGeometry(1.35, 1, 1.35);
+    const geo = new THREE.BoxGeometry(1.3, 1, 1.3);
     geo.translate(0, 0.5, 0);
     const mat = new THREE.MeshStandardMaterial({
       color: meta.color, roughness: 0.25, metalness: 0.55,
-      emissive: meta.color, emissiveIntensity: 0.16
+      emissive: meta.color, emissiveIntensity: 0.18
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(meta.posX, 0, 0);
-    scene.add(mesh);
+    cityGroup.add(mesh);
 
     towers[ticker] = { mesh, targetHeight: 2.5, currentHeight: 2.5, baseColor: new THREE.Color(meta.color) };
   });
 
-  const domeGeo = new THREE.SphereGeometry(10.8, 36, 20, 0, Math.PI * 2, 0, Math.PI / 2);
+  const domeGeo = new THREE.SphereGeometry(9.8, 32, 18, 0, Math.PI * 2, 0, Math.PI / 2);
   const domeMat = new THREE.MeshBasicMaterial({ color: 0x10b981, wireframe: true, transparent: true, opacity: 0.0 });
   shieldDome = new THREE.Mesh(domeGeo, domeMat);
-  scene.add(shieldDome);
+  cityGroup.add(shieldDome);
 
-  window.addEventListener('resize', updateCameraForScreenSize);
+  // Вращение пальцем на смартфоне и мышью на ПК
+  wrap.addEventListener('pointerdown', (e) => {
+    isPointerDown = true;
+    startPointerX = e.clientX;
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!isPointerDown) return;
+    const dx = e.clientX - startPointerX;
+    startPointerX = e.clientX;
+    userRotY = Math.max(-0.55, Math.min(0.55, userRotY + dx * 0.005));
+  });
+  window.addEventListener('pointerup', () => { isPointerDown = false; });
+
+  fitCameraToViewport();
+  window.addEventListener('resize', fitCameraToViewport);
+  if (window.ResizeObserver) {
+    new ResizeObserver(fitCameraToViewport).observe(wrap);
+  }
+
   animateThree();
 }
 
@@ -1207,8 +1629,7 @@ function animateThree() {
   requestAnimationFrame(animateThree);
   const t = clock.getElapsedTime();
 
-  camera.position.x = Math.sin(t * 0.22) * 1.1;
-  camera.lookAt(0, 2.0, 0);
+  cityGroup.rotation.y = userRotY + Math.sin(t * 0.35) * 0.06;
 
   Object.keys(towers).forEach(ticker => {
     const tw = towers[ticker];
@@ -1223,7 +1644,7 @@ function animateThree() {
     }
   });
 
-  const targetDomeOpacity = state.isShielded ? 0.26 : 0.0;
+  const targetDomeOpacity = state.isShielded ? 0.28 : 0.0;
   shieldDome.material.opacity += (targetDomeOpacity - shieldDome.material.opacity) * 0.08;
   shieldDome.rotation.y = t * 0.15;
 
@@ -1255,7 +1676,8 @@ function updatePortfolioView() {
     const weightPct = stressedTotal > 0 ? ((stressedVal / stressedTotal) * 100).toFixed(1) : 0;
 
     if (towers[ticker]) {
-      towers[ticker].targetHeight = Math.max(0.35, stressedVal / 42000);
+      // Ограничиваем максимальную высоту башни (не выше 5.8 ед.), чтобы она никогда не упиралась в потолок холста
+      towers[ticker].targetHeight = Math.min(5.8, Math.max(0.4, stressedVal / 46000));
       if (impact < -0.05 && !state.isShielded) {
         towers[ticker].mesh.material.color.setHex(0xef4444);
       } else if (meta.isHedge && state.isShielded) {
@@ -1308,7 +1730,7 @@ function updatePortfolioView() {
 }
 
 /**
- * 10. ИСПОЛНЕНИЕ ПАКЕТА ПОРУЧЕНИЙ ЧЕРЕЗ T-INVEST MCP (OrdersService/PostOrder)
+ * 10. ИСПОЛНЕНИЕ ПАКЕТА ПОРУЧЕНИЙ ЧЕРЕЗ T-INVEST MCP
  */
 async function executeAiHedge(isAuto = false) {
   if (!state.pendingOrders || state.pendingOrders.length === 0) return;
@@ -1402,12 +1824,12 @@ function resetPortfolio() {
   syncParam('oil', BASE_MACRO.oil, false);
   syncParam('usd', BASE_MACRO.usd, false);
   syncParam('stress', BASE_MACRO.stress, false);
-  document.getElementById('hudScenarioName').textContent = 'Базовый консенсус рынка';
+  document.getElementById('hudScenarioName').textContent = 'Базовый консенсус';
   document.getElementById('hudShieldStatus').textContent = 'Защита: Т-Капитал 12%';
   document.getElementById('aiStateBadge').textContent = 'MCP Ready';
   document.getElementById('hedgeSplitBox').style.display = 'none';
   document.getElementById('aiDiagnosisText').innerHTML = 'Портфель Т-Инвестиций возвращен к стартовой структуре (88% акции, 12% фонды Т-Капитал). Задайте любую ставку ЦБ, цену Brent или курс рубля.';
-  document.getElementById('aiOrdersList').innerHTML = '<div style="font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0;">Сдвиньте любой ползунок для расчета.</div>';
+  document.getElementById('aiOrdersList').innerHTML = '<div style="font-size: 12px; color: var(--muted); text-align: center; padding: 14px 0;">Сдвиньте любой ползунок для расчета.</div>';
   document.getElementById('btnExecute').disabled = true;
   updatePortfolioView();
   addLog('MCP state reset: портфель возвращен к базовому балансу (1 000 000 ₽)', 'mcp');
